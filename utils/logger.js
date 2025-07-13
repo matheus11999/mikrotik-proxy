@@ -1,5 +1,8 @@
 const winston = require('winston');
 
+// Garantir que dotenv está carregado
+require('dotenv').config();
+
 const logger = winston.createLogger({
   level: process.env.LOG_LEVEL || 'info',
   format: winston.format.combine(

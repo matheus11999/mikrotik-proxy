@@ -1,8 +1,20 @@
 const { createClient } = require('@supabase/supabase-js');
 const logger = require('../utils/logger');
 
+// Garantir que dotenv está carregado
+require('dotenv').config();
+
 class SupabaseService {
   constructor() {
+    // Verificar se as variáveis de ambiente estão definidas
+    if (!process.env.SUPABASE_URL) {
+      throw new Error('SUPABASE_URL não está definida no arquivo .env');
+    }
+    
+    if (!process.env.SUPABASE_SERVICE_KEY) {
+      throw new Error('SUPABASE_SERVICE_KEY não está definida no arquivo .env');
+    }
+
     this.supabase = createClient(
       process.env.SUPABASE_URL,
       process.env.SUPABASE_SERVICE_KEY
