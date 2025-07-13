@@ -3,6 +3,7 @@ const router = express.Router();
 const mikrotikService = require('../services/mikrotikService');
 const supabaseService = require('../services/supabaseService');
 const { authenticateByToken, authenticateByBearerToken, validateRequest, rateLimitByMikrotik } = require('../middleware/auth');
+const { metricsCollector } = require('../middleware/metrics');
 const logger = require('../utils/logger');
 
 // Rate limiting específico para MikroTik (30 req/min por MikroTik)
@@ -27,6 +28,25 @@ router.all('/:mikrotikId/rest/*',
         method,
         hasData: !!data
       });
+
+      // Verificar se dispositivo está em cache como offline
+      const cachedOffline = metricsCollector.isDeviceCachedOffline(req.mikrotik);
+      if (cachedOffline) {
+        logger.info(`MikroTik ${req.mikrotik.nome} está em cache como offline`, {
+          cacheExpiresIn: cachedOffline.cacheExpiresIn,
+          mikrotikId
+        });
+        
+        // Retornar resposta cached sem fazer nova requisição
+        return res.status(200).json({
+          success: false,
+          error: 'MikroTik offline (cached)',
+          code: 'DEVICE_OFFLINE',
+          responseTime: 0,
+          cached: true,
+          cacheExpiresIn: Math.max(0, metricsCollector.metrics.offlineCacheDuration - (Date.now() - cachedOffline.timestamp))
+        });
+      }
 
       // Fazer a requisição para o MikroTik
       const result = await mikrotikService.makeRequest(req.mikrotik, endpoint, method, data);

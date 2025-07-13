@@ -14,7 +14,10 @@ class MetricsCollector {
       startTime: Date.now(),
       // Informações de debug
       recentRequests: [], // Últimas 50 requisições para debug
-      errorDetails: []    // Detalhes dos últimos erros
+      errorDetails: [],   // Detalhes dos últimos erros
+      // Cache de status offline
+      offlineDevices: new Map(), // Cache de dispositivos offline
+      offlineCacheDuration: 30000 // 30 segundos
     };
     
     // Limpar métricas antigas a cada hora
@@ -63,7 +66,7 @@ class MetricsCollector {
         }
         
         // Classificar resposta baseada no conteúdo, não apenas status HTTP
-        const isSuccess = metricsCollector.isSuccessfulResponse(res.statusCode, data);
+        const isSuccess = metricsCollector.isSuccessfulResponse(res.statusCode, data, req.mikrotik);
         
         if (isSuccess) {
           metricsCollector.metrics.successfulRequests++;
@@ -158,7 +161,7 @@ class MetricsCollector {
   }
 
   // Determinar se a resposta foi bem-sucedida baseado no conteúdo
-  isSuccessfulResponse(statusCode, responseData) {
+  isSuccessfulResponse(statusCode, responseData, mikrotikInfo = null) {
     // Status HTTP indica sucesso
     if (statusCode >= 200 && statusCode < 400) {
       // Verificar se é uma resposta da API MikroTik com erro semântico
@@ -167,11 +170,38 @@ class MetricsCollector {
         
         // Se tem propriedade 'success', usar ela
         if (data.hasOwnProperty('success')) {
+          // Dispositivo offline é um status válido, não erro
+          if (!data.success && data.code === 'DEVICE_OFFLINE') {
+            // Adicionar ao cache de offline
+            if (mikrotikInfo) {
+              const cacheKey = `${mikrotikInfo.id || mikrotikInfo.ip}`;
+              this.metrics.offlineDevices.set(cacheKey, {
+                timestamp: Date.now(),
+                mikrotik: mikrotikInfo,
+                details: data
+              });
+            }
+            return true; // Offline é um status válido, não erro
+          }
+          
           return data.success === true;
         }
         
-        // Se tem código de erro conhecido do MikroTik, não é sucesso
-        if (data.code && ['DEVICE_OFFLINE', 'INVALID_CREDENTIALS'].includes(data.code)) {
+        // Códigos específicos de dispositivo offline não são erros
+        if (data.code && ['DEVICE_OFFLINE', 'ECONNREFUSED', 'ETIMEDOUT', 'ENOTFOUND'].includes(data.code)) {
+          if (mikrotikInfo) {
+            const cacheKey = `${mikrotikInfo.id || mikrotikInfo.ip}`;
+            this.metrics.offlineDevices.set(cacheKey, {
+              timestamp: Date.now(),
+              mikrotik: mikrotikInfo,
+              details: data
+            });
+          }
+          return true; // Offline é um status válido
+        }
+        
+        // Credenciais inválidas são erro real
+        if (data.code && ['INVALID_CREDENTIALS', 'ACCESS_DENIED'].includes(data.code)) {
           return false;
         }
         
@@ -318,7 +348,14 @@ class MetricsCollector {
       debug: {
         recentRequests: this.metrics.recentRequests.slice(-20), // Últimas 20 requisições
         errorDetails: this.metrics.errorDetails.slice(-20),     // Últimos 20 erros
-        totalErrorsStored: this.metrics.errorDetails.length
+        totalErrorsStored: this.metrics.errorDetails.length,
+        offlineDevices: Array.from(this.metrics.offlineDevices.entries()).map(([key, entry]) => ({
+          key,
+          mikrotik: entry.mikrotik,
+          offlineSince: new Date(entry.timestamp).toISOString(),
+          cacheExpiresIn: Math.max(0, this.metrics.offlineCacheDuration - (Date.now() - entry.timestamp)),
+          details: entry.details
+        }))
       },
       raw: {
         allEndpoints: this.metrics.requestsByEndpoint,
@@ -347,6 +384,36 @@ class MetricsCollector {
     logger.info('Métricas resetadas');
   }
 
+  // Verificar se dispositivo está em cache offline
+  isDeviceCachedOffline(mikrotikInfo) {
+    if (!mikrotikInfo) return false;
+    
+    const cacheKey = `${mikrotikInfo.id || mikrotikInfo.ip}`;
+    const cachedEntry = this.metrics.offlineDevices.get(cacheKey);
+    
+    if (!cachedEntry) return false;
+    
+    // Verificar se cache ainda é válido (30 segundos)
+    const isValid = (Date.now() - cachedEntry.timestamp) < this.metrics.offlineCacheDuration;
+    
+    if (!isValid) {
+      this.metrics.offlineDevices.delete(cacheKey);
+      return false;
+    }
+    
+    return cachedEntry;
+  }
+
+  // Limpar cache de dispositivos offline expirados
+  cleanExpiredOfflineCache() {
+    const now = Date.now();
+    for (const [key, entry] of this.metrics.offlineDevices.entries()) {
+      if ((now - entry.timestamp) >= this.metrics.offlineCacheDuration) {
+        this.metrics.offlineDevices.delete(key);
+      }
+    }
+  }
+
   // Limpar métricas antigas (mais de 1 hora)
   cleanOldMetrics() {
     const oneHourAgo = Date.now() - (60 * 60 * 1000);
@@ -354,6 +421,9 @@ class MetricsCollector {
     // Limpar response times antigos
     this.metrics.responseTimes = this.metrics.responseTimes
       .filter(r => r.timestamp > oneHourAgo);
+    
+    // Limpar cache de offline expirado
+    this.cleanExpiredOfflineCache();
     
     logger.debug('Métricas antigas limpas');
   }

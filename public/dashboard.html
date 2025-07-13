@@ -388,6 +388,12 @@
                     <div class="metric-value" id="activeMikrotiks">0</div>
                     <div class="metric-subtitle">Dispositivos conectados</div>
                 </div>
+
+                <div class="metric-card">
+                    <h3>⚠️ MikroTiks Offline</h3>
+                    <div class="metric-value warning" id="offlineMikrotiks">0</div>
+                    <div class="metric-subtitle">Em cache por <span id="cacheTime">30s</span></div>
+                </div>
             </div>
 
             <!-- Gráfico de Tempo de Resposta -->
@@ -434,6 +440,23 @@
                             <th>Tipo de Erro</th>
                             <th>Ocorrências</th>
                             <th>Percentual</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+
+            <!-- MikroTiks Offline -->
+            <div class="chart-container">
+                <h3>📱 Dispositivos MikroTik Offline (Cache 30s)</h3>
+                <table class="data-table" id="offlineDevicesTable">
+                    <thead>
+                        <tr>
+                            <th>MikroTik</th>
+                            <th>IP</th>
+                            <th>Offline desde</th>
+                            <th>Cache expira em</th>
+                            <th>Motivo</th>
                         </tr>
                     </thead>
                     <tbody></tbody>
@@ -687,6 +710,10 @@
             if (metrics.debug) {
                 updateRecentRequestsTable(metrics.debug.recentRequests);
                 updateErrorDetailsContainer(metrics.debug.errorDetails);
+                updateOfflineDevicesTable(metrics.debug.offlineDevices);
+                
+                // Atualizar contador de dispositivos offline
+                document.getElementById('offlineMikrotiks').textContent = metrics.debug.offlineDevices.length;
             }
         }
 
@@ -916,6 +943,48 @@
 
                 container.appendChild(errorDiv);
             });
+        }
+
+        // Atualizar tabela de dispositivos offline
+        function updateOfflineDevicesTable(offlineDevices) {
+            const tbody = document.querySelector('#offlineDevicesTable tbody');
+            tbody.innerHTML = '';
+
+            offlineDevices.forEach(device => {
+                const row = tbody.insertRow();
+                
+                // Nome do MikroTik
+                row.insertCell(0).textContent = device.mikrotik.nome || 'Desconhecido';
+                
+                // IP
+                row.insertCell(1).textContent = device.mikrotik.ip || '-';
+                
+                // Offline desde
+                const offlineTime = new Date(device.offlineSince).toLocaleTimeString('pt-BR');
+                row.insertCell(2).textContent = offlineTime;
+                
+                // Cache expira em
+                const expiresCell = row.insertCell(3);
+                const expiresInMs = device.cacheExpiresIn;
+                const expiresInSec = Math.ceil(expiresInMs / 1000);
+                expiresCell.textContent = `${expiresInSec}s`;
+                expiresCell.style.color = expiresInSec <= 5 ? '#f87171' : '#fbbf24';
+                
+                // Motivo
+                const reasonCell = row.insertCell(4);
+                reasonCell.textContent = device.details.error || 'Timeout';
+                reasonCell.style.fontSize = '0.9em';
+                reasonCell.style.color = '#94a3b8';
+            });
+
+            if (offlineDevices.length === 0) {
+                const row = tbody.insertRow();
+                const cell = row.insertCell(0);
+                cell.colSpan = 5;
+                cell.textContent = 'Nenhum dispositivo offline em cache';
+                cell.style.textAlign = 'center';
+                cell.style.color = '#34d399';
+            }
         }
     </script>
 </body>
