@@ -16,11 +16,27 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 // Middlewares de segurança
-app.use(helmet());
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", "data:", "https:"],
+      connectSrc: ["'self'"],
+      fontSrc: ["'self'"],
+      objectSrc: ["'none'"],
+      mediaSrc: ["'self'"],
+      frameSrc: ["'none'"],
+    },
+  },
+  crossOriginOpenerPolicy: false // Desabilitar para HTTP
+}));
+
 app.use(cors({
   origin: process.env.ALLOWED_ORIGINS?.split(',') || '*',
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-MikroTik-ID']
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-MikroTik-ID', 'X-Dashboard-Password']
 }));
 
 app.use(compression());
@@ -72,6 +88,11 @@ app.use((req, res, next) => {
   });
   
   next();
+});
+
+// Rota principal - redirecionar para dashboard
+app.get('/', (req, res) => {
+  res.redirect('/dashboard.html');
 });
 
 // Rotas
