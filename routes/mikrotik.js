@@ -62,7 +62,10 @@ router.all('/:mikrotikId/rest/*',
           responseTime: result.responseTime
         });
       } else {
-        res.status(result.status || 500).json({
+        // Dispositivos offline devem retornar status 200, não 500
+        const statusCode = result.code === 'DEVICE_OFFLINE' ? 200 : (result.status || 500);
+        
+        res.status(statusCode).json({
           success: false,
           error: result.error,
           code: result.code,

@@ -102,17 +102,22 @@ class MetricsCollector {
           metricsCollector.metrics.recentRequests = metricsCollector.metrics.recentRequests.slice(-50);
         }
 
-        // Se houve erro, armazenar detalhes
+        // Se houve erro, armazenar detalhes (mas não para dispositivos offline)
         if (!isSuccess) {
-          const errorDetail = {
-            ...requestInfo,
-            responseData: data,
-            errorType: metricsCollector.getSmartErrorType(res.statusCode, data)
-          };
+          const errorType = metricsCollector.getSmartErrorType(res.statusCode, data);
           
-          metricsCollector.metrics.errorDetails.push(errorDetail);
-          if (metricsCollector.metrics.errorDetails.length > 100) {
-            metricsCollector.metrics.errorDetails = metricsCollector.metrics.errorDetails.slice(-100);
+          // Dispositivos offline não vão para errorDetails, já estão no cache
+          if (errorType !== 'MIKROTIK_OFFLINE') {
+            const errorDetail = {
+              ...requestInfo,
+              responseData: data,
+              errorType
+            };
+            
+            metricsCollector.metrics.errorDetails.push(errorDetail);
+            if (metricsCollector.metrics.errorDetails.length > 100) {
+              metricsCollector.metrics.errorDetails = metricsCollector.metrics.errorDetails.slice(-100);
+            }
           }
         }
         
@@ -221,9 +226,8 @@ class MetricsCollector {
     if (statusCode === 401) return 'AUTHENTICATION';
     if (statusCode === 403) return 'AUTHORIZATION';
     if (statusCode === 404) return 'NOT_FOUND';
-    if (statusCode >= 500) return 'SERVER_ERROR';
     
-    // Analisar conteúdo da resposta para erros semânticos
+    // Analisar conteúdo da resposta para erros semânticos ANTES do status HTTP
     try {
       const data = typeof responseData === 'string' ? JSON.parse(responseData) : responseData;
       
@@ -234,7 +238,7 @@ class MetricsCollector {
           case 'ECONNREFUSED':
           case 'ETIMEDOUT':
           case 'ENOTFOUND':
-            return 'MIKROTIK_OFFLINE';
+            return 'MIKROTIK_OFFLINE'; // Não é um erro real
           
           case 'INVALID_CREDENTIALS':
           case 'ACCESS_DENIED':
@@ -251,6 +255,9 @@ class MetricsCollector {
     } catch (e) {
       // Ignorar erro de parse
     }
+    
+    // Só verificar status HTTP se não encontrou código específico
+    if (statusCode >= 500) return 'SERVER_ERROR';
     
     return 'UNKNOWN_ERROR';
   }
