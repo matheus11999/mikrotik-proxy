@@ -6,9 +6,9 @@ const { authenticateByUserSession, rateLimitByUser } = require('../middleware/se
 const { metricsCollector } = require('../middleware/metrics');
 const logger = require('../utils/logger');
 
-// Rate limiting baseado no usuário (60 req/min por usuário)
+// Rate limiting otimizado baseado no usuário
 const userRateLimit = rateLimitByUser(
-  parseInt(process.env.USER_RATE_LIMIT_MAX_REQUESTS) || 60, 
+  parseInt(process.env.USER_RATE_LIMIT_MAX_REQUESTS) || 100, // Aumentado para produção
   parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 60000
 );
 
@@ -34,23 +34,26 @@ router.all('/:mikrotikId/rest/*',
         userEmail: req.user.email
       });
 
-      // Verificar se dispositivo está em cache como offline
+      // Verificação rápida de cache offline (otimizado)
       const cachedOffline = metricsCollector.isDeviceCachedOffline(req.mikrotik);
       if (cachedOffline) {
-        logger.info(`MikroTik ${req.mikrotik.nome} está em cache como offline`, {
-          cacheExpiresIn: cachedOffline.cacheExpiresIn,
-          mikrotikId,
-          userId: req.user.id
+        const cacheExpiresIn = Math.max(0, metricsCollector.metrics.offlineCacheDuration - (Date.now() - cachedOffline.timestamp));
+        
+        // Headers de cache para otimização do cliente
+        res.set({
+          'Cache-Control': `private, max-age=${Math.ceil(cacheExpiresIn / 1000)}`,
+          'X-Cache': 'HIT-OFFLINE',
+          'X-Cache-Expires': cacheExpiresIn
         });
         
-        // Retornar resposta cached sem fazer nova requisição
+        // Resposta rápida sem logs desnecessários
         return res.status(200).json({
           success: false,
           error: 'MikroTik offline (cached)',
           code: 'DEVICE_OFFLINE',
           responseTime: 0,
           cached: true,
-          cacheExpiresIn: Math.max(0, metricsCollector.metrics.offlineCacheDuration - (Date.now() - cachedOffline.timestamp))
+          cacheExpiresIn
         });
       }
 
@@ -58,10 +61,23 @@ router.all('/:mikrotikId/rest/*',
       const result = await mikrotikService.makeRequest(req.mikrotik, endpoint, method, data);
       const responseTime = Date.now() - startTime;
 
-      // Log da requisição
-      await supabaseService.logApiAccess(mikrotikId, endpoint, method, result.success, responseTime);
+      // Log assíncrono para não bloquear resposta
+      setImmediate(() => {
+        supabaseService.logApiAccess(mikrotikId, endpoint, method, result.success, responseTime)
+          .catch(err => logger.debug('Log API access failed:', err.message));
+      });
+
+      // Headers de performance
+      res.set({
+        'X-Response-Time': `${responseTime}ms`,
+        'X-Cache': 'MISS',
+        'X-MikroTik-Id': mikrotikId
+      });
 
       if (result.success) {
+        // Cache headers para sucesso
+        res.set('Cache-Control', 'private, max-age=5'); // Cache curto para dados dinâmicos
+        
         res.status(result.status || 200).json({
           success: true,
           data: result.data,
@@ -70,6 +86,11 @@ router.all('/:mikrotikId/rest/*',
       } else {
         // Dispositivos offline devem retornar status 200, não 500
         const statusCode = result.code === 'DEVICE_OFFLINE' ? 200 : (result.status || 500);
+        
+        // Headers específicos para erros
+        if (result.code === 'DEVICE_OFFLINE') {
+          res.set('Cache-Control', 'private, max-age=30'); // Cache mais longo para offline
+        }
         
         res.status(statusCode).json({
           success: false,

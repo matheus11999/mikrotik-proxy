@@ -7,8 +7,7 @@ require('dotenv').config();
 
 const logger = require('./utils/logger');
 const supabaseService = require('./services/supabaseService');
-const mikrotikProxy = require('./routes/mikrotik');
-const secureMikrotikProxy = require('./routes/secureMikrotik');
+const mikrotikProxy = require('./routes/secureMikrotik');
 const healthRouter = require('./routes/health');
 const metricsRouter = require('./routes/metrics');
 const { collectMetrics, trackRateLimit } = require('./middleware/metrics');
@@ -33,21 +32,23 @@ app.use(compression());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Rate limiting global
+// Rate limiting global otimizado para produção
 const globalRateLimit = rateLimit({
   windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 60000, // 1 minuto
-  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100, // 100 requests por minuto
+  max: parseInt(process.env.GLOBAL_RATE_LIMIT_MAX_REQUESTS) || 200, // Aumentado para produção
   message: {
     error: 'Muitas requisições. Tente novamente em 1 minuto.',
     code: 'RATE_LIMIT_EXCEEDED'
   },
   standardHeaders: true,
   legacyHeaders: false,
+  skip: (req) => {
+    // Pular rate limit global para health checks e métricas
+    return req.path.startsWith('/health') || req.path.startsWith('/metrics');
+  },
   keyGenerator: (req) => {
-    // Rate limit baseado no IP do cliente + token Bearer se disponível
-    const authHeader = req.headers.authorization;
-    const token = authHeader && authHeader.startsWith('Bearer ') ? authHeader.replace('Bearer ', '') : null;
-    return token ? `${req.ip}-${token.substring(0, 8)}` : req.ip;
+    // Rate limit otimizado baseado no IP
+    return req.ip;
   }
 });
 
@@ -88,8 +89,7 @@ app.get('/', (req, res) => {
 // Rotas
 app.use('/health', healthRouter);
 app.use('/metrics', metricsRouter);
-app.use('/api/mikrotik/secure', secureMikrotikProxy); // Rota segura PRIMEIRO
-app.use('/api/mikrotik', mikrotikProxy); // Rota antiga mantida para compatibilidade
+app.use('/api/mikrotik', mikrotikProxy);
 
 // Middleware de tratamento de erros
 app.use((err, req, res, next) => {
