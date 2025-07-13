@@ -1,0 +1,765 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MikroTik Proxy API - Dashboard de Monitoramento</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+            color: #e2e8f0;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 16px;
+            border: 1px solid rgba(59, 130, 246, 0.3);
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            background: linear-gradient(to right, #60a5fa, #34d399);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+        }
+
+        .auth-section {
+            background: rgba(0, 0, 0, 0.4);
+            padding: 30px;
+            border-radius: 16px;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            text-align: center;
+            max-width: 400px;
+            margin: 50px auto;
+        }
+
+        .auth-section h2 {
+            color: #f87171;
+            margin-bottom: 20px;
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #cbd5e1;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #475569;
+            border-radius: 8px;
+            background: rgba(15, 23, 42, 0.8);
+            color: #e2e8f0;
+            font-size: 16px;
+        }
+
+        .input-group input:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.3s ease;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(59, 130, 246, 0.3);
+        }
+
+        .dashboard {
+            display: none;
+        }
+
+        .dashboard.active {
+            display: block;
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .metric-card {
+            background: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(75, 85, 99, 0.3);
+            border-radius: 16px;
+            padding: 20px;
+            transition: all 0.3s ease;
+        }
+
+        .metric-card:hover {
+            border-color: rgba(59, 130, 246, 0.5);
+            transform: translateY(-5px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .metric-card h3 {
+            color: #60a5fa;
+            margin-bottom: 15px;
+            font-size: 1.2rem;
+        }
+
+        .metric-value {
+            font-size: 2rem;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .metric-value.success {
+            color: #34d399;
+        }
+
+        .metric-value.warning {
+            color: #fbbf24;
+        }
+
+        .metric-value.error {
+            color: #f87171;
+        }
+
+        .metric-subtitle {
+            color: #94a3b8;
+            font-size: 0.9rem;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .status-indicator.online {
+            background: #22c55e;
+            box-shadow: 0 0 10px rgba(34, 197, 94, 0.5);
+        }
+
+        .status-indicator.offline {
+            background: #ef4444;
+            box-shadow: 0 0 10px rgba(239, 68, 68, 0.5);
+        }
+
+        .chart-container {
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(75, 85, 99, 0.3);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .chart-container h3 {
+            color: #60a5fa;
+            margin-bottom: 20px;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .data-table th {
+            background: rgba(59, 130, 246, 0.2);
+            color: #60a5fa;
+            padding: 12px;
+            text-align: left;
+        }
+
+        .data-table td {
+            padding: 12px;
+            border-bottom: 1px solid rgba(75, 85, 99, 0.3);
+        }
+
+        .data-table tr:hover {
+            background: rgba(59, 130, 246, 0.1);
+        }
+
+        .error-message {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #f87171;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #94a3b8;
+        }
+
+        .loading::after {
+            content: '';
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid #475569;
+            border-top: 2px solid #60a5fa;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-left: 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .auto-refresh {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .toggle-switch {
+            position: relative;
+            width: 50px;
+            height: 24px;
+            background: #475569;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .toggle-switch.active {
+            background: #3b82f6;
+        }
+
+        .toggle-switch::after {
+            content: '';
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 20px;
+            height: 20px;
+            background: white;
+            border-radius: 50%;
+            transition: transform 0.3s;
+        }
+
+        .toggle-switch.active::after {
+            transform: translateX(26px);
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+
+            .header h1 {
+                font-size: 2rem;
+            }
+
+            .metrics-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🛡️ MikroTik Proxy API</h1>
+            <p>Dashboard de Monitoramento e Métricas</p>
+        </div>
+
+        <!-- Seção de Autenticação -->
+        <div id="authSection" class="auth-section">
+            <h2>🔐 Acesso Restrito</h2>
+            <p style="margin-bottom: 20px;">Digite a senha para acessar o dashboard de monitoramento</p>
+            
+            <div class="input-group">
+                <label for="password">Senha do Dashboard:</label>
+                <input type="password" id="password" placeholder="Digite a senha..." />
+            </div>
+            
+            <button class="btn" onclick="authenticate()">Acessar Dashboard</button>
+            
+            <div id="authError" style="margin-top: 15px; color: #f87171; display: none;"></div>
+        </div>
+
+        <!-- Dashboard Principal -->
+        <div id="dashboard" class="dashboard">
+            <div class="controls">
+                <div class="auto-refresh">
+                    <span>Atualização Automática:</span>
+                    <div id="refreshToggle" class="toggle-switch" onclick="toggleAutoRefresh()"></div>
+                    <span id="refreshStatus">Desativada</span>
+                </div>
+                <button class="btn" onclick="refreshData()">🔄 Atualizar Agora</button>
+                <button class="btn" onclick="resetMetrics()" style="background: linear-gradient(135deg, #ef4444, #dc2626);">📊 Resetar Métricas</button>
+                <button class="btn" onclick="logout()" style="background: linear-gradient(135deg, #6b7280, #4b5563);">🚪 Sair</button>
+            </div>
+
+            <div id="error" class="error-message" style="display: none;"></div>
+            <div id="loading" class="loading" style="display: none;">Carregando métricas...</div>
+
+            <!-- Grid de Métricas -->
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <h3>📊 Status do Sistema</h3>
+                    <div class="metric-value">
+                        <span class="status-indicator" id="systemStatus"></span>
+                        <span id="systemStatusText">Verificando...</span>
+                    </div>
+                    <div class="metric-subtitle">Uptime: <span id="uptime">-</span></div>
+                </div>
+
+                <div class="metric-card">
+                    <h3>🚀 Requisições Totais</h3>
+                    <div class="metric-value" id="totalRequests">0</div>
+                    <div class="metric-subtitle">Por minuto: <span id="requestsPerMinute">0</span></div>
+                </div>
+
+                <div class="metric-card">
+                    <h3>✅ Taxa de Sucesso</h3>
+                    <div class="metric-value success" id="successRate">100%</div>
+                    <div class="metric-subtitle">Sucessos: <span id="successCount">0</span> | Falhas: <span id="failureCount">0</span></div>
+                </div>
+
+                <div class="metric-card">
+                    <h3>⚡ Tempo de Resposta</h3>
+                    <div class="metric-value" id="avgResponseTime">0ms</div>
+                    <div class="metric-subtitle">Tempo médio de resposta</div>
+                </div>
+
+                <div class="metric-card">
+                    <h3>🚫 Rate Limits</h3>
+                    <div class="metric-value warning" id="rateLimitHits">0</div>
+                    <div class="metric-subtitle">Requisições bloqueadas</div>
+                </div>
+
+                <div class="metric-card">
+                    <h3>🔧 MikroTiks Ativos</h3>
+                    <div class="metric-value" id="activeMikrotiks">0</div>
+                    <div class="metric-subtitle">Dispositivos conectados</div>
+                </div>
+            </div>
+
+            <!-- Gráfico de Tempo de Resposta -->
+            <div class="chart-container">
+                <h3>📈 Histórico de Tempo de Resposta (30 min)</h3>
+                <canvas id="responseTimeChart" width="400" height="200"></canvas>
+            </div>
+
+            <!-- Tabelas de Dados -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+                <div class="chart-container">
+                    <h3>🔥 Top Endpoints</h3>
+                    <table class="data-table" id="topEndpointsTable">
+                        <thead>
+                            <tr>
+                                <th>Endpoint</th>
+                                <th>Requisições</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+
+                <div class="chart-container">
+                    <h3>🖥️ Top MikroTiks</h3>
+                    <table class="data-table" id="topMikrotiksTable">
+                        <thead>
+                            <tr>
+                                <th>MikroTik</th>
+                                <th>Requisições</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Erros por Tipo -->
+            <div class="chart-container">
+                <h3>❌ Erros por Tipo</h3>
+                <table class="data-table" id="errorsTable">
+                    <thead>
+                        <tr>
+                            <th>Tipo de Erro</th>
+                            <th>Ocorrências</th>
+                            <th>Percentual</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let dashboardPassword = '';
+        let autoRefreshInterval = null;
+        let responseTimeChart = null;
+
+        // Autenticação
+        function authenticate() {
+            const password = document.getElementById('password').value;
+            const errorElement = document.getElementById('authError');
+
+            if (!password) {
+                showAuthError('Por favor, digite a senha');
+                return;
+            }
+
+            dashboardPassword = password;
+            
+            // Testar autenticação fazendo uma requisição
+            fetch('/metrics', {
+                headers: {
+                    'X-Dashboard-Password': password
+                }
+            })
+            .then(response => {
+                if (response.ok) {
+                    document.getElementById('authSection').style.display = 'none';
+                    document.getElementById('dashboard').classList.add('active');
+                    initializeDashboard();
+                } else {
+                    throw new Error('Senha incorreta');
+                }
+            })
+            .catch(error => {
+                showAuthError('Senha incorreta ou erro de conexão');
+            });
+        }
+
+        function showAuthError(message) {
+            const errorElement = document.getElementById('authError');
+            errorElement.textContent = message;
+            errorElement.style.display = 'block';
+        }
+
+        function logout() {
+            dashboardPassword = '';
+            document.getElementById('authSection').style.display = 'block';
+            document.getElementById('dashboard').classList.remove('active');
+            document.getElementById('password').value = '';
+            if (autoRefreshInterval) {
+                clearInterval(autoRefreshInterval);
+                autoRefreshInterval = null;
+            }
+        }
+
+        // Permitir Enter na senha
+        document.getElementById('password').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                authenticate();
+            }
+        });
+
+        // Inicializar dashboard
+        function initializeDashboard() {
+            initializeChart();
+            refreshData();
+            
+            // Auto-refresh a cada 10 segundos se ativado
+            const refreshToggle = document.getElementById('refreshToggle');
+            if (refreshToggle.classList.contains('active')) {
+                startAutoRefresh();
+            }
+        }
+
+        // Inicializar gráfico
+        function initializeChart() {
+            const ctx = document.getElementById('responseTimeChart').getContext('2d');
+            responseTimeChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Tempo de Resposta (ms)',
+                        data: [],
+                        borderColor: '#60a5fa',
+                        backgroundColor: 'rgba(96, 165, 250, 0.1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            labels: {
+                                color: '#e2e8f0'
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                color: '#94a3b8'
+                            },
+                            grid: {
+                                color: 'rgba(148, 163, 184, 0.1)'
+                            }
+                        },
+                        x: {
+                            ticks: {
+                                color: '#94a3b8'
+                            },
+                            grid: {
+                                color: 'rgba(148, 163, 184, 0.1)'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Atualizar dados
+        async function refreshData() {
+            const loading = document.getElementById('loading');
+            const error = document.getElementById('error');
+            
+            loading.style.display = 'block';
+            error.style.display = 'none';
+
+            try {
+                const response = await fetch('/metrics/detailed', {
+                    headers: {
+                        'X-Dashboard-Password': dashboardPassword
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                const data = await response.json();
+                updateDashboard(data.metrics);
+            } catch (err) {
+                error.textContent = `Erro ao carregar dados: ${err.message}`;
+                error.style.display = 'block';
+            } finally {
+                loading.style.display = 'none';
+            }
+        }
+
+        // Atualizar dashboard com dados
+        function updateDashboard(metrics) {
+            // Status do sistema
+            const isHealthy = metrics.requests.total >= 0;
+            document.getElementById('systemStatus').className = `status-indicator ${isHealthy ? 'online' : 'offline'}`;
+            document.getElementById('systemStatusText').textContent = isHealthy ? 'Online' : 'Offline';
+            document.getElementById('uptime').textContent = metrics.uptime.human;
+
+            // Métricas principais
+            document.getElementById('totalRequests').textContent = metrics.requests.total.toLocaleString();
+            document.getElementById('requestsPerMinute').textContent = metrics.requests.perMinute;
+            document.getElementById('successRate').textContent = metrics.requests.successRate;
+            document.getElementById('successCount').textContent = metrics.requests.successful.toLocaleString();
+            document.getElementById('failureCount').textContent = metrics.requests.failed.toLocaleString();
+            document.getElementById('avgResponseTime').textContent = metrics.performance.avgResponseTime;
+            document.getElementById('rateLimitHits').textContent = metrics.performance.rateLimitHits.toLocaleString();
+            document.getElementById('activeMikrotiks').textContent = metrics.topMikrotiks.length;
+
+            // Atualizar cores baseado nos valores
+            const successRateValue = parseInt(metrics.requests.successRate);
+            const successRateElement = document.getElementById('successRate');
+            successRateElement.className = `metric-value ${successRateValue >= 95 ? 'success' : successRateValue >= 80 ? 'warning' : 'error'}`;
+
+            const avgResponseValue = parseInt(metrics.performance.avgResponseTime);
+            const avgResponseElement = document.getElementById('avgResponseTime');
+            avgResponseElement.className = `metric-value ${avgResponseValue <= 100 ? 'success' : avgResponseValue <= 500 ? 'warning' : 'error'}`;
+
+            // Atualizar gráfico
+            if (metrics.history && metrics.history.responseTimes) {
+                updateChart(metrics.history.responseTimes);
+            }
+
+            // Atualizar tabelas
+            updateTopEndpointsTable(metrics.topEndpoints);
+            updateTopMikrotiksTable(metrics.topMikrotiks);
+            updateErrorsTable(metrics.errors, metrics.requests.failed);
+        }
+
+        // Atualizar gráfico de tempo de resposta
+        function updateChart(responseTimeHistory) {
+            const labels = responseTimeHistory.map(point => {
+                const date = new Date(point.timestamp);
+                return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+            });
+            
+            const data = responseTimeHistory.map(point => point.avgResponseTime);
+
+            responseTimeChart.data.labels = labels;
+            responseTimeChart.data.datasets[0].data = data;
+            responseTimeChart.update('none');
+        }
+
+        // Atualizar tabela de top endpoints
+        function updateTopEndpointsTable(topEndpoints) {
+            const tbody = document.querySelector('#topEndpointsTable tbody');
+            tbody.innerHTML = '';
+
+            topEndpoints.forEach(endpoint => {
+                const row = tbody.insertRow();
+                row.insertCell(0).textContent = endpoint.endpoint;
+                row.insertCell(1).textContent = endpoint.count.toLocaleString();
+            });
+
+            if (topEndpoints.length === 0) {
+                const row = tbody.insertRow();
+                const cell = row.insertCell(0);
+                cell.colSpan = 2;
+                cell.textContent = 'Nenhum endpoint registrado';
+                cell.style.textAlign = 'center';
+                cell.style.color = '#94a3b8';
+            }
+        }
+
+        // Atualizar tabela de top MikroTiks
+        function updateTopMikrotiksTable(topMikrotiks) {
+            const tbody = document.querySelector('#topMikrotiksTable tbody');
+            tbody.innerHTML = '';
+
+            topMikrotiks.forEach(mikrotik => {
+                const row = tbody.insertRow();
+                row.insertCell(0).textContent = mikrotik.mikrotik;
+                row.insertCell(1).textContent = mikrotik.count.toLocaleString();
+            });
+
+            if (topMikrotiks.length === 0) {
+                const row = tbody.insertRow();
+                const cell = row.insertCell(0);
+                cell.colSpan = 2;
+                cell.textContent = 'Nenhum MikroTik registrado';
+                cell.style.textAlign = 'center';
+                cell.style.color = '#94a3b8';
+            }
+        }
+
+        // Atualizar tabela de erros
+        function updateErrorsTable(errors, totalErrors) {
+            const tbody = document.querySelector('#errorsTable tbody');
+            tbody.innerHTML = '';
+
+            Object.entries(errors).forEach(([type, count]) => {
+                const row = tbody.insertRow();
+                row.insertCell(0).textContent = type;
+                row.insertCell(1).textContent = count.toLocaleString();
+                const percentage = totalErrors > 0 ? ((count / totalErrors) * 100).toFixed(1) : '0.0';
+                row.insertCell(2).textContent = `${percentage}%`;
+            });
+
+            if (Object.keys(errors).length === 0) {
+                const row = tbody.insertRow();
+                const cell = row.insertCell(0);
+                cell.colSpan = 3;
+                cell.textContent = 'Nenhum erro registrado';
+                cell.style.textAlign = 'center';
+                cell.style.color = '#94a3b8';
+            }
+        }
+
+        // Auto-refresh
+        function toggleAutoRefresh() {
+            const toggle = document.getElementById('refreshToggle');
+            const status = document.getElementById('refreshStatus');
+            
+            if (toggle.classList.contains('active')) {
+                toggle.classList.remove('active');
+                status.textContent = 'Desativada';
+                if (autoRefreshInterval) {
+                    clearInterval(autoRefreshInterval);
+                    autoRefreshInterval = null;
+                }
+            } else {
+                toggle.classList.add('active');
+                status.textContent = 'Ativada (10s)';
+                startAutoRefresh();
+            }
+        }
+
+        function startAutoRefresh() {
+            if (autoRefreshInterval) {
+                clearInterval(autoRefreshInterval);
+            }
+            autoRefreshInterval = setInterval(refreshData, 10000);
+        }
+
+        // Resetar métricas
+        async function resetMetrics() {
+            if (!confirm('Tem certeza que deseja resetar todas as métricas? Esta ação não pode ser desfeita.')) {
+                return;
+            }
+
+            try {
+                const response = await fetch('/metrics/reset', {
+                    method: 'POST',
+                    headers: {
+                        'X-Dashboard-Password': dashboardPassword
+                    }
+                });
+
+                if (response.ok) {
+                    alert('Métricas resetadas com sucesso!');
+                    refreshData();
+                } else {
+                    throw new Error('Erro ao resetar métricas');
+                }
+            } catch (error) {
+                alert(`Erro: ${error.message}`);
+            }
+        }
+    </script>
+</body>
+</html>

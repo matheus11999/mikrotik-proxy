@@ -9,6 +9,8 @@ const logger = require('./utils/logger');
 const supabaseService = require('./services/supabaseService');
 const mikrotikProxy = require('./routes/mikrotik');
 const healthRouter = require('./routes/health');
+const metricsRouter = require('./routes/metrics');
+const { collectMetrics, trackRateLimit } = require('./middleware/metrics');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -45,6 +47,13 @@ const globalRateLimit = rateLimit({
 
 app.use(globalRateLimit);
 
+// Middleware de métricas
+app.use(collectMetrics);
+app.use(trackRateLimit);
+
+// Servir arquivos estáticos para dashboard
+app.use(express.static('public'));
+
 // Middleware de logging
 app.use((req, res, next) => {
   const start = Date.now();
@@ -67,6 +76,7 @@ app.use((req, res, next) => {
 
 // Rotas
 app.use('/health', healthRouter);
+app.use('/metrics', metricsRouter);
 app.use('/api/mikrotik', mikrotikProxy);
 
 // Middleware de tratamento de erros
