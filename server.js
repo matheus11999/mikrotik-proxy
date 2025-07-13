@@ -36,9 +36,10 @@ const globalRateLimit = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: (req) => {
-    // Rate limit baseado no IP do cliente + MikroTik ID se disponível
-    const mikrotikId = req.headers['x-mikrotik-id'];
-    return mikrotikId ? `${req.ip}-${mikrotikId}` : req.ip;
+    // Rate limit baseado no IP do cliente + token Bearer se disponível
+    const authHeader = req.headers.authorization;
+    const token = authHeader && authHeader.startsWith('Bearer ') ? authHeader.replace('Bearer ', '') : null;
+    return token ? `${req.ip}-${token.substring(0, 8)}` : req.ip;
   }
 });
 
@@ -57,7 +58,7 @@ app.use((req, res, next) => {
       duration: `${duration}ms`,
       ip: req.ip,
       userAgent: req.get('User-Agent'),
-      mikrotikId: req.headers['x-mikrotik-id']
+      token: req.headers.authorization ? req.headers.authorization.replace('Bearer ', '').substring(0, 8) + '...' : null
     });
   });
   

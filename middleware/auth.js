@@ -43,24 +43,33 @@ async function authenticateByToken(req, res, next) {
   }
 }
 
-// Middleware para autenticação por ID do MikroTik
-async function authenticateByMikrotikId(req, res, next) {
+// Middleware para autenticação por Bearer Token (token do MikroTik)
+async function authenticateByBearerToken(req, res, next) {
   try {
-    const mikrotikId = req.headers['x-mikrotik-id'] || req.params.mikrotikId;
+    const authHeader = req.headers.authorization;
     
-    if (!mikrotikId) {
-      return res.status(400).json({
-        error: 'ID do MikroTik não fornecido',
-        code: 'MISSING_MIKROTIK_ID'
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({
+        error: 'Token Bearer obrigatório no header Authorization',
+        code: 'MISSING_BEARER_TOKEN'
       });
     }
 
-    const mikrotik = await supabaseService.getMikrotikCredentials(mikrotikId);
+    const token = authHeader.replace('Bearer ', '');
+    
+    if (!token) {
+      return res.status(401).json({
+        error: 'Token não fornecido',
+        code: 'MISSING_TOKEN'
+      });
+    }
+
+    const mikrotik = await supabaseService.getMikrotikByToken(token);
     
     if (!mikrotik) {
-      return res.status(404).json({
-        error: 'MikroTik não encontrado',
-        code: 'MIKROTIK_NOT_FOUND'
+      return res.status(401).json({
+        error: 'Token inválido',
+        code: 'INVALID_TOKEN'
       });
     }
 
@@ -71,13 +80,23 @@ async function authenticateByMikrotikId(req, res, next) {
       });
     }
 
+    // Verificar se o MikroTik da URL corresponde ao token
+    const mikrotikIdFromUrl = req.params.mikrotikId;
+    if (mikrotikIdFromUrl && mikrotikIdFromUrl !== mikrotik.id) {
+      return res.status(403).json({
+        error: 'Token não autorizado para este MikroTik',
+        code: 'TOKEN_MIKROTIK_MISMATCH'
+      });
+    }
+
     // Adicionar informações do MikroTik ao request
     req.mikrotik = mikrotik;
     req.mikrotikId = mikrotik.id;
+    req.userId = mikrotik.user_id; // Adicionar user_id para logs
     
     next();
   } catch (error) {
-    logger.error('Erro na autenticação por MikroTik ID:', error);
+    logger.error('Erro na autenticação por Bearer Token:', error);
     res.status(500).json({
       error: 'Erro interno na autenticação',
       code: 'AUTH_ERROR'
@@ -151,7 +170,7 @@ function rateLimitByMikrotik(maxRequests = 30, windowMs = 60000) {
 
 module.exports = {
   authenticateByToken,
-  authenticateByMikrotikId,
+  authenticateByBearerToken,
   validateRequest,
   rateLimitByMikrotik
 };

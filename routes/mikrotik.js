@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const mikrotikService = require('../services/mikrotikService');
 const supabaseService = require('../services/supabaseService');
-const { authenticateByToken, authenticateByMikrotikId, validateRequest, rateLimitByMikrotik } = require('../middleware/auth');
+const { authenticateByToken, authenticateByBearerToken, validateRequest, rateLimitByMikrotik } = require('../middleware/auth');
 const logger = require('../utils/logger');
 
 // Rate limiting específico para MikroTik (30 req/min por MikroTik)
@@ -10,7 +10,7 @@ const mikrotikRateLimit = rateLimitByMikrotik(30, 60000);
 
 // Rota para fazer requisições genéricas para a API REST do MikroTik
 router.all('/:mikrotikId/rest/*', 
-  authenticateByMikrotikId,
+  authenticateByBearerToken,
   mikrotikRateLimit,
   async (req, res) => {
     const startTime = Date.now();
@@ -67,7 +67,7 @@ router.all('/:mikrotikId/rest/*',
 
 // Rota para testar conexão com MikroTik
 router.get('/:mikrotikId/test', 
-  authenticateByMikrotikId,
+  authenticateByBearerToken,
   async (req, res) => {
     try {
       const result = await mikrotikService.testConnection(req.mikrotik);
@@ -97,7 +97,7 @@ router.get('/:mikrotikId/test',
 
 // Interfaces
 router.get('/:mikrotikId/interfaces', 
-  authenticateByMikrotikId,
+  authenticateByBearerToken,
   mikrotikRateLimit,
   async (req, res) => {
     try {
@@ -117,7 +117,7 @@ router.get('/:mikrotikId/interfaces',
 
 // Usuários Hotspot
 router.get('/:mikrotikId/hotspot/users', 
-  authenticateByMikrotikId,
+  authenticateByBearerToken,
   mikrotikRateLimit,
   async (req, res) => {
     try {
@@ -136,7 +136,7 @@ router.get('/:mikrotikId/hotspot/users',
 );
 
 router.post('/:mikrotikId/hotspot/users', 
-  authenticateByMikrotikId,
+  authenticateByBearerToken,
   mikrotikRateLimit,
   validateRequest(['name']),
   async (req, res) => {
@@ -157,7 +157,7 @@ router.post('/:mikrotikId/hotspot/users',
 
 // Usuários ativos no Hotspot
 router.get('/:mikrotikId/hotspot/active', 
-  authenticateByMikrotikId,
+  authenticateByBearerToken,
   mikrotikRateLimit,
   async (req, res) => {
     try {
@@ -177,7 +177,7 @@ router.get('/:mikrotikId/hotspot/active',
 
 // Recursos do sistema
 router.get('/:mikrotikId/system/resource', 
-  authenticateByMikrotikId,
+  authenticateByBearerToken,
   mikrotikRateLimit,
   async (req, res) => {
     try {
@@ -197,7 +197,7 @@ router.get('/:mikrotikId/system/resource',
 
 // Lista de endereços do firewall
 router.get('/:mikrotikId/firewall/address-list', 
-  authenticateByMikrotikId,
+  authenticateByBearerToken,
   mikrotikRateLimit,
   async (req, res) => {
     try {
@@ -216,7 +216,7 @@ router.get('/:mikrotikId/firewall/address-list',
 );
 
 router.post('/:mikrotikId/firewall/address-list', 
-  authenticateByMikrotikId,
+  authenticateByBearerToken,
   mikrotikRateLimit,
   validateRequest(['address', 'list']),
   async (req, res) => {

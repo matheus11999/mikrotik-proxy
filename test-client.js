@@ -3,6 +3,7 @@ const axios = require('axios');
 // Configurações
 const API_BASE_URL = 'http://localhost:3001';
 const MIKROTIK_ID = '07d822ff-86fd-4988-8120-c6dc28de79fd'; // ID do Helio da sua tabela
+const MIKROTIK_TOKEN = '882f38a2-ad13-4a60-a298-4e732750a807'; // Token do Helio
 
 // Cliente de teste para demonstrar como usar a API
 class MikrotikProxyClient {

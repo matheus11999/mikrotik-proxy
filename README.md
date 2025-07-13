@@ -60,12 +60,14 @@ npm start
 
 ### 1. Autenticação
 
-Use o ID do MikroTik no header:
+Use o token Bearer do MikroTik (campo `token` da tabela `mikrotiks`):
 ```javascript
 headers: {
-  'X-MikroTik-ID': '07d822ff-86fd-4988-8120-c6dc28de79fd'
+  'Authorization': 'Bearer 882f38a2-ad13-4a60-a298-4e732750a807'
 }
 ```
+
+**Segurança**: Apenas o proprietário do MikroTik (via token) pode acessar seus dados.
 
 ### 2. Endpoints Disponíveis
 
@@ -121,7 +123,7 @@ const axios = require('axios');
 const api = axios.create({
   baseURL: 'http://localhost:3001',
   headers: {
-    'X-MikroTik-ID': '07d822ff-86fd-4988-8120-c6dc28de79fd'
+    'Authorization': 'Bearer 882f38a2-ad13-4a60-a298-4e732750a807'
   }
 });
 
@@ -142,15 +144,15 @@ const identity = await api.get('/api/mikrotik/07d822ff-86fd-4988-8120-c6dc28de79
 #### cURL
 ```bash
 # Testar conexão
-curl -H "X-MikroTik-ID: 07d822ff-86fd-4988-8120-c6dc28de79fd" \
+curl -H "Authorization: Bearer 882f38a2-ad13-4a60-a298-4e732750a807" \
      http://localhost:3001/api/mikrotik/07d822ff-86fd-4988-8120-c6dc28de79fd/test
 
 # Listar usuários hotspot
-curl -H "X-MikroTik-ID: 07d822ff-86fd-4988-8120-c6dc28de79fd" \
+curl -H "Authorization: Bearer 882f38a2-ad13-4a60-a298-4e732750a807" \
      http://localhost:3001/api/mikrotik/07d822ff-86fd-4988-8120-c6dc28de79fd/hotspot/users
 
 # Requisição genérica para system/resource
-curl -H "X-MikroTik-ID: 07d822ff-86fd-4988-8120-c6dc28de79fd" \
+curl -H "Authorization: Bearer 882f38a2-ad13-4a60-a298-4e732750a807" \
      http://localhost:3001/api/mikrotik/07d822ff-86fd-4988-8120-c6dc28de79fd/rest/system/resource
 ```
 
