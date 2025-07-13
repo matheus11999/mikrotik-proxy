@@ -446,11 +446,17 @@
         let dashboardPassword = '';
         let autoRefreshInterval = null;
         let responseTimeChart = null;
+        
+        // Base URL da API
+        const API_BASE_URL = window.location.origin;
 
         // Autenticação
         function authenticate() {
             const password = document.getElementById('password').value;
             const errorElement = document.getElementById('authError');
+
+            console.log('Tentando autenticar com senha:', password);
+            console.log('Base URL:', API_BASE_URL);
 
             if (!password) {
                 showAuthError('Por favor, digite a senha');
@@ -460,22 +466,28 @@
             dashboardPassword = password;
             
             // Testar autenticação fazendo uma requisição
-            fetch('/metrics', {
+            fetch(`${API_BASE_URL}/metrics`, {
                 headers: {
                     'X-Dashboard-Password': password
                 }
             })
             .then(response => {
+                console.log('Response status:', response.status);
+                console.log('Response ok:', response.ok);
+                
                 if (response.ok) {
+                    console.log('Autenticação bem-sucedida!');
                     document.getElementById('authSection').style.display = 'none';
                     document.getElementById('dashboard').classList.add('active');
                     initializeDashboard();
                 } else {
+                    console.log('Falha na autenticação, status:', response.status);
                     throw new Error('Senha incorreta');
                 }
             })
             .catch(error => {
-                showAuthError('Senha incorreta ou erro de conexão');
+                console.error('Erro na autenticação:', error);
+                showAuthError('Senha incorreta ou erro de conexão: ' + error.message);
             });
         }
 
@@ -573,7 +585,7 @@
             error.style.display = 'none';
 
             try {
-                const response = await fetch('/metrics/detailed', {
+                const response = await fetch(`${API_BASE_URL}/metrics/detailed`, {
                     headers: {
                         'X-Dashboard-Password': dashboardPassword
                     }
@@ -743,7 +755,7 @@
             }
 
             try {
-                const response = await fetch('/metrics/reset', {
+                const response = await fetch(`${API_BASE_URL}/metrics/reset`, {
                     method: 'POST',
                     headers: {
                         'X-Dashboard-Password': dashboardPassword
