@@ -171,6 +171,35 @@ router.get('/live', authenticateDashboard, (req, res) => {
   });
 });
 
+// GET /metrics/debug - Informações detalhadas de debug
+router.get('/debug', authenticateDashboard, (req, res) => {
+  try {
+    const detailedMetrics = metricsCollector.getDetailedMetrics();
+    
+    res.json({
+      success: true,
+      timestamp: new Date().toISOString(),
+      debug: {
+        recentRequests: detailedMetrics.debug.recentRequests,
+        errorDetails: detailedMetrics.debug.errorDetails,
+        totalErrorsStored: detailedMetrics.debug.totalErrorsStored,
+        systemInfo: {
+          nodeVersion: process.version,
+          platform: process.platform,
+          uptime: process.uptime(),
+          memoryUsage: process.memoryUsage()
+        }
+      }
+    });
+  } catch (error) {
+    logger.error('Erro ao obter informações de debug:', error);
+    res.status(500).json({
+      error: 'Erro interno ao obter debug',
+      code: 'DEBUG_ERROR'
+    });
+  }
+});
+
 // GET /metrics/health - Health check específico do sistema de métricas
 router.get('/health', (req, res) => {
   try {
