@@ -15,22 +15,11 @@ const { collectMetrics, trackRateLimit } = require('./middleware/metrics');
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Middlewares de segurança
+// Middlewares de segurança - Desabilitar CSP para desenvolvimento
 app.use(helmet({
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net"],
-      styleSrc: ["'self'", "'unsafe-inline'"],
-      imgSrc: ["'self'", "data:", "https:"],
-      connectSrc: ["'self'"],
-      fontSrc: ["'self'"],
-      objectSrc: ["'none'"],
-      mediaSrc: ["'self'"],
-      frameSrc: ["'none'"],
-    },
-  },
-  crossOriginOpenerPolicy: false // Desabilitar para HTTP
+  contentSecurityPolicy: false,
+  crossOriginOpenerPolicy: false,
+  originAgentCluster: false
 }));
 
 app.use(cors({

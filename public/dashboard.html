@@ -327,7 +327,7 @@
                 <input type="password" id="password" placeholder="Digite a senha..." />
             </div>
             
-            <button class="btn" onclick="authenticate()">Acessar Dashboard</button>
+            <button id="authBtn" class="btn">Acessar Dashboard</button>
             
             <div id="authError" style="margin-top: 15px; color: #f87171; display: none;"></div>
         </div>
@@ -337,12 +337,12 @@
             <div class="controls">
                 <div class="auto-refresh">
                     <span>Atualização Automática:</span>
-                    <div id="refreshToggle" class="toggle-switch" onclick="toggleAutoRefresh()"></div>
+                    <div id="refreshToggle" class="toggle-switch"></div>
                     <span id="refreshStatus">Desativada</span>
                 </div>
-                <button class="btn" onclick="refreshData()">🔄 Atualizar Agora</button>
-                <button class="btn" onclick="resetMetrics()" style="background: linear-gradient(135deg, #ef4444, #dc2626);">📊 Resetar Métricas</button>
-                <button class="btn" onclick="logout()" style="background: linear-gradient(135deg, #6b7280, #4b5563);">🚪 Sair</button>
+                <button id="refreshBtn" class="btn">🔄 Atualizar Agora</button>
+                <button id="resetBtn" class="btn" style="background: linear-gradient(135deg, #ef4444, #dc2626);">📊 Resetar Métricas</button>
+                <button id="logoutBtn" class="btn" style="background: linear-gradient(135deg, #6b7280, #4b5563);">🚪 Sair</button>
             </div>
 
             <div id="error" class="error-message" style="display: none;"></div>
@@ -508,11 +508,23 @@
             }
         }
 
-        // Permitir Enter na senha
-        document.getElementById('password').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                authenticate();
-            }
+        // Event Listeners
+        document.addEventListener('DOMContentLoaded', function() {
+            // Botão de autenticação
+            document.getElementById('authBtn').addEventListener('click', authenticate);
+            
+            // Enter na senha
+            document.getElementById('password').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    authenticate();
+                }
+            });
+            
+            // Botões do dashboard
+            document.getElementById('refreshToggle').addEventListener('click', toggleAutoRefresh);
+            document.getElementById('refreshBtn').addEventListener('click', refreshData);
+            document.getElementById('resetBtn').addEventListener('click', resetMetrics);
+            document.getElementById('logoutBtn').addEventListener('click', logout);
         });
 
         // Inicializar dashboard
