@@ -8,8 +8,10 @@ class MikrotikService {
   }
 
   async makeRequest(mikrotikConfig, endpoint, method = 'GET', data = null) {
-    const { ip, username, password, port } = mikrotikConfig;
-    const baseURL = `http://${ip}:${port || 80}`;
+    const { ip, username, password } = mikrotikConfig;
+    
+    // API REST sempre usa porta 80 (HTTP)
+    const baseURL = `http://${ip}:80`;
     const fullURL = `${baseURL}/rest${endpoint}`;
 
     const startTime = Date.now();
