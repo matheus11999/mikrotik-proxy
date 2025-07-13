@@ -46,29 +46,40 @@ class MikrotikProxyClient {
   }
 
   // Testar conexão com MikroTik específico
-  async testMikrotikConnection(mikrotikId) {
+  async testMikrotikConnection(mikrotikId, token) {
     console.log(`🔗 Testando conexão com MikroTik ${mikrotikId}...`);
     const result = await this.makeRequest({
       url: `/api/mikrotik/${mikrotikId}/test`,
       method: 'GET',
       headers: {
-        'X-MikroTik-ID': mikrotikId
+        'Authorization': `Bearer ${token}`
       }
     });
     console.log('✅ Conexão testada:', result);
     return result;
   }
 
-  // Listar interfaces
-  async getInterfaces(mikrotikId) {
-    console.log(`📡 Obtendo interfaces do MikroTik ${mikrotikId}...`);
-    const result = await this.makeRequest({
-      url: `/api/mikrotik/${mikrotikId}/interfaces`,
-      method: 'GET',
+  // Função auxiliar para requisições autenticadas
+  async makeAuthenticatedRequest(mikrotikId, token, endpoint, method = 'GET', data = null) {
+    const config = {
+      url: `/api/mikrotik/${mikrotikId}${endpoint}`,
+      method,
       headers: {
-        'X-MikroTik-ID': mikrotikId
+        'Authorization': `Bearer ${token}`
       }
-    });
+    };
+
+    if (data && ['POST', 'PUT', 'PATCH'].includes(method.toUpperCase())) {
+      config.data = data;
+    }
+
+    return await this.makeRequest(config);
+  }
+
+  // Listar interfaces
+  async getInterfaces(mikrotikId, token) {
+    console.log(`📡 Obtendo interfaces do MikroTik ${mikrotikId}...`);
+    const result = await this.makeAuthenticatedRequest(mikrotikId, token, '/interfaces');
     console.log('✅ Interfaces obtidas:', result.data?.length, 'interfaces');
     return result;
   }
@@ -165,23 +176,23 @@ async function runTests() {
     console.log('');
 
     // 3. Testar conexão com MikroTik específico
-    await client.testMikrotikConnection(MIKROTIK_ID);
+    await client.testMikrotikConnection(MIKROTIK_ID, MIKROTIK_TOKEN);
     console.log('');
 
     // 4. Obter recursos do sistema
-    await client.getSystemResources(MIKROTIK_ID);
+    await client.getSystemResources(MIKROTIK_ID, MIKROTIK_TOKEN);
     console.log('');
 
     // 5. Listar interfaces
-    await client.getInterfaces(MIKROTIK_ID);
+    await client.getInterfaces(MIKROTIK_ID, MIKROTIK_TOKEN);
     console.log('');
 
     // 6. Listar usuários hotspot
-    await client.getHotspotUsers(MIKROTIK_ID);
+    await client.getHotspotUsers(MIKROTIK_ID, MIKROTIK_TOKEN);
     console.log('');
 
     // 7. Exemplo de requisição genérica
-    await client.makeGenericRequest(MIKROTIK_ID, '/system/identity');
+    await client.makeGenericRequest(MIKROTIK_ID, MIKROTIK_TOKEN, '/system/identity');
     console.log('');
 
     // 8. Exemplo de criação de usuário (descomente se quiser testar)

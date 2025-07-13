@@ -139,6 +139,7 @@ class SupabaseService {
   }
 
   async logApiAccess(mikrotikId, endpoint, method, success, responseTime) {
+    // Log opcional - não falha se a tabela não existir
     try {
       const { error } = await this.supabase
         .from('mikrotik_api_logs')
@@ -151,11 +152,12 @@ class SupabaseService {
           accessed_at: new Date().toISOString()
         });
 
-      if (error) {
-        logger.error('Erro ao registrar log de acesso à API:', error);
+      if (error && !error.message?.includes('does not exist')) {
+        logger.warn('Aviso ao registrar log de acesso à API:', error.message);
       }
     } catch (error) {
-      logger.error('Erro ao registrar log de acesso:', error);
+      // Silencioso - não é crítico para o funcionamento
+      logger.debug('Log de acesso ignorado:', error.message);
     }
   }
 }

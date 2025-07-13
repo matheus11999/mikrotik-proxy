@@ -68,59 +68,176 @@ class MikrotikService {
     } catch (error) {
       const responseTime = Date.now() - startTime;
       
+      // Análise detalhada do tipo de erro
       if (error.code === 'ECONNREFUSED') {
-        logger.error(`MikroTik não acessível: ${ip}:${port}`);
+        logger.error(`MikroTik offline (conexão recusada): ${ip}:80`);
         return {
           success: false,
-          error: 'MikroTik não acessível',
-          code: 'CONNECTION_REFUSED',
-          responseTime
+          error: 'MikroTik offline',
+          code: 'DEVICE_OFFLINE',
+          responseTime,
+          details: 'Dispositivo não está respondendo na porta 80'
         };
       }
 
-      if (error.code === 'ETIMEDOUT') {
-        logger.error(`Timeout na conexão com MikroTik: ${ip}:${port}`);
+      if (error.code === 'ETIMEDOUT' || error.code === 'ENOTFOUND') {
+        logger.error(`MikroTik inacessível: ${ip}:80 - ${error.code}`);
         return {
           success: false,
-          error: 'Timeout na conexão',
-          code: 'TIMEOUT',
-          responseTime
+          error: 'MikroTik offline',
+          code: 'DEVICE_OFFLINE',
+          responseTime,
+          details: 'Timeout ou IP não encontrado'
+        };
+      }
+
+      if (error.code === 'ECONNABORTED') {
+        logger.error(`Timeout de requisição: ${ip}:80`);
+        return {
+          success: false,
+          error: 'MikroTik offline',
+          code: 'DEVICE_OFFLINE',
+          responseTime,
+          details: 'Dispositivo não respondeu no tempo limite'
         };
       }
 
       if (error.response) {
-        // Erro HTTP do MikroTik
+        const status = error.response.status;
+        
+        // Análise específica por código HTTP
+        if (status === 401) {
+          logger.warn(`Credenciais inválidas para MikroTik: ${ip}:80`);
+          return {
+            success: false,
+            status: 401,
+            error: 'Usuário ou senha incorretos',
+            code: 'INVALID_CREDENTIALS',
+            responseTime,
+            details: 'Verificar username e password do MikroTik'
+          };
+        }
+
+        if (status === 403) {
+          logger.warn(`Acesso negado para MikroTik: ${ip}:80`);
+          return {
+            success: false,
+            status: 403,
+            error: 'Acesso negado',
+            code: 'ACCESS_DENIED',
+            responseTime,
+            details: 'Usuário não tem permissões suficientes'
+          };
+        }
+
+        if (status === 404) {
+          logger.warn(`Endpoint não encontrado: ${ip}:80${endpoint}`);
+          return {
+            success: false,
+            status: 404,
+            error: 'Recurso não encontrado',
+            code: 'ENDPOINT_NOT_FOUND',
+            responseTime,
+            details: 'API REST pode não estar habilitada'
+          };
+        }
+
+        if (status >= 500) {
+          logger.error(`Erro interno do MikroTik: ${ip}:80 - Status ${status}`);
+          return {
+            success: false,
+            status: status,
+            error: 'Erro interno do MikroTik',
+            code: 'MIKROTIK_ERROR',
+            responseTime,
+            details: error.response.data || 'Erro no RouterOS'
+          };
+        }
+
+        // Outros erros HTTP
         logger.warn(`MikroTik API Error`, {
           mikrotik: ip,
           method,
           endpoint,
-          status: error.response.status,
+          status: status,
           error: error.response.data,
           responseTime: `${responseTime}ms`
         });
 
         return {
           success: false,
-          status: error.response.status,
+          status: status,
           error: error.response.data || 'Erro na API do MikroTik',
           code: 'MIKROTIK_API_ERROR',
           responseTime
         };
       }
 
-      // Outros erros
-      logger.error(`Erro desconhecido na requisição MikroTik`, {
-        mikrotik: ip,
-        method,
-        endpoint,
+      // Outros erros de rede/conexão
+      logger.error(`Erro de rede com MikroTik: ${ip}:80`, {
         error: error.message,
+        code: error.code,
         responseTime: `${responseTime}ms`
       });
 
       return {
         success: false,
-        error: error.message || 'Erro desconhecido',
-        code: 'UNKNOWN_ERROR',
+        error: 'MikroTik offline',
+        code: 'DEVICE_OFFLINE',
+        responseTime,
+        details: error.message
+      };
+    }
+  }
+
+  async quickConnectivityTest(mikrotikConfig) {
+    const { ip } = mikrotikConfig;
+    const startTime = Date.now();
+    
+    try {
+      // Teste rápido com timeout de 3 segundos
+      const response = await axios.get(`http://${ip}:80/rest/system/clock`, {
+        timeout: 3000,
+        auth: {
+          username: mikrotikConfig.username,
+          password: mikrotikConfig.password
+        },
+        validateStatus: (status) => status >= 200 && status < 500
+      });
+      
+      const responseTime = Date.now() - startTime;
+      
+      if (response.status === 401) {
+        return {
+          success: false,
+          error: 'Usuário ou senha incorretos',
+          code: 'INVALID_CREDENTIALS',
+          responseTime
+        };
+      }
+      
+      return {
+        success: true,
+        responseTime,
+        status: response.status
+      };
+      
+    } catch (error) {
+      const responseTime = Date.now() - startTime;
+      
+      if (error.response?.status === 401) {
+        return {
+          success: false,
+          error: 'Usuário ou senha incorretos',
+          code: 'INVALID_CREDENTIALS',
+          responseTime
+        };
+      }
+      
+      return {
+        success: false,
+        error: 'MikroTik offline',
+        code: 'DEVICE_OFFLINE',
         responseTime
       };
     }
@@ -128,6 +245,14 @@ class MikrotikService {
 
   async testConnection(mikrotikConfig) {
     try {
+      // Primeiro faz teste rápido de conectividade
+      const quickTest = await this.quickConnectivityTest(mikrotikConfig);
+      
+      if (!quickTest.success) {
+        return quickTest;
+      }
+      
+      // Se passou no teste rápido, faz teste completo
       const result = await this.makeRequest(mikrotikConfig, '/system/identity', 'GET');
       
       if (result.success) {
