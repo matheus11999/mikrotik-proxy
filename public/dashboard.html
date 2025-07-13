@@ -447,8 +447,8 @@
         let autoRefreshInterval = null;
         let responseTimeChart = null;
         
-        // Base URL da API
-        const API_BASE_URL = window.location.origin;
+        // Base URL da API - forçar HTTP
+        const API_BASE_URL = 'http://router.mikropix.online:3001';
 
         // Autenticação
         function authenticate() {
