@@ -6,8 +6,11 @@ const { authenticateByToken, authenticateByBearerToken, validateRequest, rateLim
 const { metricsCollector } = require('../middleware/metrics');
 const logger = require('../utils/logger');
 
-// Rate limiting específico para MikroTik (30 req/min por MikroTik)
-const mikrotikRateLimit = rateLimitByMikrotik(30, 60000);
+// Rate limiting específico para MikroTik baseado no .env
+const mikrotikRateLimit = rateLimitByMikrotik(
+  parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 30, 
+  parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 60000
+);
 
 // Rota para fazer requisições genéricas para a API REST do MikroTik
 router.all('/:mikrotikId/rest/*', 

@@ -8,6 +8,7 @@ require('dotenv').config();
 const logger = require('./utils/logger');
 const supabaseService = require('./services/supabaseService');
 const mikrotikProxy = require('./routes/mikrotik');
+const secureMikrotikProxy = require('./routes/secureMikrotik');
 const healthRouter = require('./routes/health');
 const metricsRouter = require('./routes/metrics');
 const { collectMetrics, trackRateLimit } = require('./middleware/metrics');
@@ -87,7 +88,8 @@ app.get('/', (req, res) => {
 // Rotas
 app.use('/health', healthRouter);
 app.use('/metrics', metricsRouter);
-app.use('/api/mikrotik', mikrotikProxy);
+app.use('/api/mikrotik/secure', secureMikrotikProxy); // Rota segura PRIMEIRO
+app.use('/api/mikrotik', mikrotikProxy); // Rota antiga mantida para compatibilidade
 
 // Middleware de tratamento de erros
 app.use((err, req, res, next) => {
