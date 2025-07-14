@@ -5,8 +5,17 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
+    "start:prod": "node production.js",
     "dev": "nodemon server.js",
-    "test": "node test-client.js"
+    "test": "node test-client.js",
+    "benchmark": "node benchmark.js",
+    "pm2:start": "pm2 start ecosystem.config.js --env production",
+    "pm2:stop": "pm2 stop mikrotik-proxy-api",
+    "pm2:restart": "pm2 restart mikrotik-proxy-api",
+    "pm2:logs": "pm2 logs mikrotik-proxy-api",
+    "pm2:status": "pm2 status",
+    "health": "curl -s http://localhost:3001/health | jq .",
+    "metrics": "curl -s -H 'X-Dashboard-Password: admin123' http://localhost:3001/metrics | jq ."
   },
   "dependencies": {
     "express": "^4.18.2",

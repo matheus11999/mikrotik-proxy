@@ -40,6 +40,18 @@ class MikrotikService {
         config.data = data;
       }
 
+      // Log da requisição detalhada
+      console.log('\n🔵 ===== MIKROTIK API REQUEST =====');
+      console.log(`📡 URL: ${fullURL}`);
+      console.log(`🔗 Method: ${method.toUpperCase()}`);
+      console.log(`🏠 MikroTik: ${ip}`);
+      console.log(`👤 Auth: ${username}:[HIDDEN]`);
+      if (data) {
+        console.log('📄 Request Data:');
+        console.log(JSON.stringify(data, null, 2));
+      }
+      console.log('================================\n');
+
       logger.info(`MikroTik API Request`, {
         mikrotik: ip,
         method,
@@ -49,6 +61,15 @@ class MikrotikService {
 
       const response = await axios(config);
       const responseTime = Date.now() - startTime;
+
+      // Log da resposta detalhada
+      console.log('\n🟢 ===== MIKROTIK API RESPONSE =====');
+      console.log(`📡 URL: ${fullURL}`);
+      console.log(`✅ Status: ${response.status} ${response.statusText || ''}`);
+      console.log(`⏱️  Time: ${responseTime}ms`);
+      console.log('📄 Response Data:');
+      console.log(JSON.stringify(response.data, null, 2));
+      console.log('==================================\n');
 
       logger.info(`MikroTik API Response`, {
         mikrotik: ip,
@@ -67,6 +88,19 @@ class MikrotikService {
 
     } catch (error) {
       const responseTime = Date.now() - startTime;
+      
+      // Log do erro detalhado
+      console.log('\n🔴 ===== MIKROTIK API ERROR =====');
+      console.log(`📡 URL: ${fullURL}`);
+      console.log(`❌ Error Code: ${error.code || 'UNKNOWN'}`);
+      console.log(`📄 Error Message: ${error.message}`);
+      if (error.response) {
+        console.log(`📊 Status: ${error.response.status} ${error.response.statusText || ''}`);
+        console.log('📄 Error Response Data:');
+        console.log(JSON.stringify(error.response.data, null, 2));
+      }
+      console.log(`⏱️  Time: ${responseTime}ms`);
+      console.log('===============================\n');
       
       // Análise detalhada do tipo de erro
       if (error.code === 'ECONNREFUSED') {
