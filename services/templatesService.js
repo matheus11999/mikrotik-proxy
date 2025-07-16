@@ -361,7 +361,8 @@ class TemplatesService {
           try {
             const result = await conn.write('/tool/fetch', {
               url: fileUrl,
-              dst: targetPath
+              'dst-path': targetPath,
+              mode: 'http'
             });
 
             results.push({
@@ -383,7 +384,7 @@ class TemplatesService {
 
         // Atualizar server profile para usar o novo template
         try {
-          await conn.write(`/ip/hotspot/server/profile/set`, {
+          await conn.write('/ip/hotspot/profile/set', {
             '.id': serverProfileId,
             'html-directory': '/flash/mikropix2/'
           });
