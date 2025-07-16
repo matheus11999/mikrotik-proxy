@@ -349,71 +349,116 @@ class TemplatesService {
           }
         }
 
-        // Fazer download de cada arquivo usando tool fetch
-        for (const file of templateFiles) {
-          const fileUrl = `${baseURL}/api/mikrotik/templates/${templateId}/file/${encodeURIComponent(file.relativePath)}?mikrotikId=${mikrotikId}&${new URLSearchParams(variables).toString()}`;
-          const targetPath = `/flash/mikropix2/${file.relativePath}`;
+        // Testar primeiro se o tool fetch está disponível
+        try {
+          logger.info(`[TEMPLATES] Testando disponibilidade do tool fetch`);
+          const toolTest = await conn.write('/tool');
+          logger.info(`[TEMPLATES] Tools disponíveis:`, toolTest);
+        } catch (error) {
+          logger.error(`[TEMPLATES] Erro ao listar tools:`, error);
+        }
 
-          logger.info(`[TEMPLATES] Baixando arquivo: ${file.relativePath}`);
+        // Fazer download apenas do arquivo principal (login.html) para teste
+        const mainFile = templateFiles.find(f => f.relativePath === 'login.html');
+        if (mainFile) {
+          const fileUrl = `${baseURL}/api/mikrotik/templates/${templateId}/file/${encodeURIComponent(mainFile.relativePath)}?mikrotikId=${mikrotikId}&${new URLSearchParams(variables).toString()}`;
+          const targetPath = `/flash/mikropix2/${mainFile.relativePath}`;
+
+          logger.info(`[TEMPLATES] Testando download de: ${mainFile.relativePath}`);
           logger.info(`[TEMPLATES] URL: ${fileUrl}`);
           logger.info(`[TEMPLATES] Destino: ${targetPath}`);
 
           try {
+            // Primeira tentativa: objeto com parâmetros
+            logger.info(`[TEMPLATES] Tentativa 1: Objeto com parâmetros`);
             const result = await conn.write('/tool/fetch', {
               url: fileUrl,
               'dst-path': targetPath,
-              mode: 'http',
-              'check-certificate': 'no'
+              mode: 'http'
             });
 
             results.push({
-              file: file.relativePath,
+              file: mainFile.relativePath,
               success: true,
               result: result
             });
 
-            logger.info(`[TEMPLATES] ✅ Arquivo ${file.relativePath} baixado com sucesso`);
+            logger.info(`[TEMPLATES] ✅ Arquivo ${mainFile.relativePath} baixado com sucesso`);
           } catch (error) {
-            logger.error(`[TEMPLATES] ❌ Erro ao baixar arquivo ${file.relativePath}:`, error);
+            logger.error(`[TEMPLATES] ❌ Erro método 1:`, error);
             
-            // Tentar sintaxe alternativa se a primeira falhar
             try {
-              logger.info(`[TEMPLATES] Tentando sintaxe alternativa para ${file.relativePath}`);
+              // Segunda tentativa: array de strings
+              logger.info(`[TEMPLATES] Tentativa 2: Array de strings`);
               const result2 = await conn.write('/tool/fetch', [
                 `url=${fileUrl}`,
                 `dst-path=${targetPath}`,
-                'mode=http',
-                'check-certificate=no'
+                'mode=http'
               ]);
               
               results.push({
-                file: file.relativePath,
+                file: mainFile.relativePath,
                 success: true,
                 result: result2
               });
               
-              logger.info(`[TEMPLATES] ✅ Arquivo ${file.relativePath} baixado com sucesso (sintaxe alternativa)`);
+              logger.info(`[TEMPLATES] ✅ Arquivo ${mainFile.relativePath} baixado (método 2)`);
             } catch (error2) {
-              logger.error(`[TEMPLATES] ❌ Erro na sintaxe alternativa para ${file.relativePath}:`, error2);
-              results.push({
-                file: file.relativePath,
-                success: false,
-                error: error2.message
-              });
+              logger.error(`[TEMPLATES] ❌ Erro método 2:`, error2);
+              
+              try {
+                // Terceira tentativa: sem mode
+                logger.info(`[TEMPLATES] Tentativa 3: Sem mode`);
+                const result3 = await conn.write('/tool/fetch', {
+                  url: fileUrl,
+                  'dst-path': targetPath
+                });
+                
+                results.push({
+                  file: mainFile.relativePath,
+                  success: true,
+                  result: result3
+                });
+                
+                logger.info(`[TEMPLATES] ✅ Arquivo ${mainFile.relativePath} baixado (método 3)`);
+              } catch (error3) {
+                logger.error(`[TEMPLATES] ❌ Erro método 3:`, error3);
+                results.push({
+                  file: mainFile.relativePath,
+                  success: false,
+                  error: error3.message
+                });
+              }
             }
           }
+        } else {
+          logger.warn(`[TEMPLATES] Arquivo login.html não encontrado no template`);
         }
 
         // Atualizar server profile para usar o novo template
         try {
-          await conn.write('/ip/hotspot/profile/set', {
-            '.id': serverProfileId,
-            'html-directory': '/flash/mikropix2/'
-          });
+          logger.info(`[TEMPLATES] Atualizando server profile ID: ${serverProfileId}`);
+          const updateResult = await conn.write('/ip/hotspot/profile/set', [
+            `=.id=${serverProfileId}`,
+            '=html-directory=/flash/mikropix2/'
+          ]);
 
-          logger.info(`[TEMPLATES] ✅ Server profile ${serverProfileId} atualizado`);
+          logger.info(`[TEMPLATES] ✅ Server profile ${serverProfileId} atualizado:`, updateResult);
         } catch (error) {
           logger.error(`[TEMPLATES] ❌ Erro ao atualizar server profile:`, error);
+          
+          // Tentar sintaxe alternativa
+          try {
+            logger.info(`[TEMPLATES] Tentando sintaxe alternativa para server profile`);
+            const updateResult2 = await conn.write('/ip/hotspot/profile/set', {
+              '.id': serverProfileId,
+              'html-directory': '/flash/mikropix2/'
+            });
+            
+            logger.info(`[TEMPLATES] ✅ Server profile ${serverProfileId} atualizado (método alternativo):`, updateResult2);
+          } catch (error2) {
+            logger.error(`[TEMPLATES] ❌ Erro no método alternativo:`, error2);
+          }
         }
 
         return {
