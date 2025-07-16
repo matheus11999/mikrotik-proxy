@@ -382,16 +382,16 @@ class TemplatesService {
               'dst-path': targetPath
             };
 
-            // Checagem defensiva: remover qualquer propriedade extra
-            Object.keys(fetchParams).forEach(key => {
-              if (!['url', 'mode', 'dst-path'].includes(key)) {
-                delete fetchParams[key];
-              }
-            });
+            // Cria um novo objeto limpo só com os campos válidos
+            const cleanFetchParams = {
+              url: fetchParams.url,
+              mode: fetchParams.mode,
+              'dst-path': fetchParams['dst-path']
+            };
 
-            logger.info(`[TEMPLATES][DEBUG] Parâmetros enviados para /tool/fetch:`, fetchParams);
+            logger.info(`[TEMPLATES][DEBUG] Parâmetros enviados para /tool/fetch:`, cleanFetchParams);
 
-            const result = await conn.write('/tool/fetch', fetchParams);
+            const result = await conn.write('/tool/fetch', cleanFetchParams);
 
             logger.info(`[TEMPLATES][DEBUG] Resposta do /tool/fetch:`, result);
             results.push({
