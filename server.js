@@ -91,7 +91,7 @@ app.get('/', (req, res) => {
 // Rotas
 app.use('/health', healthRouter);
 app.use('/metrics', metricsRouter);
-app.use('/api/mikrotik', templatesRouter); // Templates routes (sem autenticação)
+app.use('/api/mikrotik', templatesRouter); // Templates routes (serve files sem auth, apply COM auth)
 app.use('/api/mikrotik', mikrotikProxy);
 app.use('/test/mikrotik', testMikrotikRouter); // Rota de teste
 

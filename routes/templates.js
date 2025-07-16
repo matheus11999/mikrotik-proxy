@@ -126,6 +126,11 @@ router.get('/templates/:templateId', (req, res) => {
 
 // Rota para aplicar template (com autenticação)
 router.post('/templates/apply', authenticateByUserSession, templatesRateLimit, async (req, res) => {
+  logger.info(`[TEMPLATES] ===== ROTA CHAMADA =====`);
+  logger.info(`[TEMPLATES] Method: ${req.method}`);
+  logger.info(`[TEMPLATES] Path: ${req.path}`);
+  logger.info(`[TEMPLATES] Headers:`, req.headers);
+  
   try {
     logger.info(`[TEMPLATES] Recebendo request para aplicar template`);
     logger.info(`[TEMPLATES] Request body:`, req.body);
@@ -185,6 +190,15 @@ router.post('/templates/apply', authenticateByUserSession, templatesRateLimit, a
       error: error.message
     });
   }
+});
+
+// Middleware de tratamento de erros para templates
+router.use((err, req, res, next) => {
+  logger.error(`[TEMPLATES] Middleware error:`, err);
+  res.status(err.status || 500).json({
+    success: false,
+    error: err.message || 'Erro interno do servidor'
+  });
 });
 
 module.exports = router;
