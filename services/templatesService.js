@@ -358,81 +358,36 @@ class TemplatesService {
           logger.error(`[TEMPLATES] Erro ao listar tools:`, error);
         }
 
-        // Fazer download apenas do arquivo principal (login.html) para teste
-        const mainFile = templateFiles.find(f => f.relativePath === 'login.html');
-        if (mainFile) {
-          const fileUrl = `${baseURL}/api/mikrotik/templates/${templateId}/file/${encodeURIComponent(mainFile.relativePath)}?mikrotikId=${mikrotikId}&${new URLSearchParams(variables).toString()}`;
-          const targetPath = `/flash/mikropix2/${mainFile.relativePath}`;
+        // Fazer download de todos os arquivos usando a nova URL sem parâmetros
+        for (const file of templateFiles) {
+          const fileUrl = `${baseURL}/api/mikrotik/templates/${templateId}/files/${mikrotikId}/${encodeURIComponent(file.relativePath)}`;
+          const targetPath = `/flash/mikropix2/${file.relativePath}`;
 
-          logger.info(`[TEMPLATES] Testando download de: ${mainFile.relativePath}`);
+          logger.info(`[TEMPLATES] Baixando arquivo: ${file.relativePath}`);
           logger.info(`[TEMPLATES] URL: ${fileUrl}`);
           logger.info(`[TEMPLATES] Destino: ${targetPath}`);
 
           try {
-            // Primeira tentativa: objeto com parâmetros
-            logger.info(`[TEMPLATES] Tentativa 1: Objeto com parâmetros`);
             const result = await conn.write('/tool/fetch', {
               url: fileUrl,
-              'dst-path': targetPath,
-              mode: 'http'
+              'dst-path': targetPath
             });
 
             results.push({
-              file: mainFile.relativePath,
+              file: file.relativePath,
               success: true,
               result: result
             });
 
-            logger.info(`[TEMPLATES] ✅ Arquivo ${mainFile.relativePath} baixado com sucesso`);
+            logger.info(`[TEMPLATES] ✅ Arquivo ${file.relativePath} baixado com sucesso`);
           } catch (error) {
-            logger.error(`[TEMPLATES] ❌ Erro método 1:`, error);
-            
-            try {
-              // Segunda tentativa: array de strings
-              logger.info(`[TEMPLATES] Tentativa 2: Array de strings`);
-              const result2 = await conn.write('/tool/fetch', [
-                `url=${fileUrl}`,
-                `dst-path=${targetPath}`,
-                'mode=http'
-              ]);
-              
-              results.push({
-                file: mainFile.relativePath,
-                success: true,
-                result: result2
-              });
-              
-              logger.info(`[TEMPLATES] ✅ Arquivo ${mainFile.relativePath} baixado (método 2)`);
-            } catch (error2) {
-              logger.error(`[TEMPLATES] ❌ Erro método 2:`, error2);
-              
-              try {
-                // Terceira tentativa: sem mode
-                logger.info(`[TEMPLATES] Tentativa 3: Sem mode`);
-                const result3 = await conn.write('/tool/fetch', {
-                  url: fileUrl,
-                  'dst-path': targetPath
-                });
-                
-                results.push({
-                  file: mainFile.relativePath,
-                  success: true,
-                  result: result3
-                });
-                
-                logger.info(`[TEMPLATES] ✅ Arquivo ${mainFile.relativePath} baixado (método 3)`);
-              } catch (error3) {
-                logger.error(`[TEMPLATES] ❌ Erro método 3:`, error3);
-                results.push({
-                  file: mainFile.relativePath,
-                  success: false,
-                  error: error3.message
-                });
-              }
-            }
+            logger.error(`[TEMPLATES] ❌ Erro ao baixar arquivo ${file.relativePath}:`, error);
+            results.push({
+              file: file.relativePath,
+              success: false,
+              error: error.message
+            });
           }
-        } else {
-          logger.warn(`[TEMPLATES] Arquivo login.html não encontrado no template`);
         }
 
         // Atualizar server profile para usar o novo template

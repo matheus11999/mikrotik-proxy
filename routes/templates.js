@@ -17,7 +17,9 @@ router.get('/templates/:templateId/file/:filename', async (req, res) => {
     const variables = { ...req.query };
     delete variables.mikrotikId; // Remover mikrotikId das variáveis
     
-    logger.info(`[TEMPLATES] Servindo arquivo ${filename} do template ${templateId} para MikroTik ${mikrotikId}`);
+    logger.info(`[TEMPLATES] 🔥 FETCH REQUEST - Servindo arquivo ${filename} do template ${templateId} para MikroTik ${mikrotikId}`);
+    logger.info(`[TEMPLATES] 🔥 User-Agent: ${req.get('User-Agent')}`);
+    logger.info(`[TEMPLATES] 🔥 Variables:`, variables);
     
     const result = templatesService.serveTemplateFile(templateId, filename, variables, mikrotikId);
     
@@ -36,9 +38,52 @@ router.get('/templates/:templateId/file/:filename', async (req, res) => {
       res.send(result.content);
     }
     
+    logger.info(`[TEMPLATES] ✅ Arquivo ${filename} servido com sucesso`);
+    
   } catch (error) {
-    logger.error(`[TEMPLATES] Erro ao servir arquivo:`, error);
-    res.status(404).json({
+    logger.error(`[TEMPLATES] ❌ Erro ao servir arquivo:`, error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Rota para servir arquivos de templates sem parâmetros (para MikroTik tool fetch)
+router.get('/templates/:templateId/files/:mikrotikId/:filename', async (req, res) => {
+  try {
+    const { templateId, mikrotikId, filename } = req.params;
+    
+    // Usar variáveis padrão (sem parâmetros na URL)
+    const variables = {
+      'PRIMARY_COLOR': '#3b82f6',
+      'DEBUG_MODE': 'false'
+    };
+    
+    logger.info(`[TEMPLATES] 🔥 FETCH REQUEST (sem parâmetros) - Servindo arquivo ${filename} do template ${templateId} para MikroTik ${mikrotikId}`);
+    
+    const result = templatesService.serveTemplateFile(templateId, filename, variables, mikrotikId);
+    
+    res.setHeader('Content-Type', result.mimeType);
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    
+    if (result.isBuffer) {
+      res.setHeader('Content-Length', result.content.length);
+      res.end(result.content);
+    } else {
+      res.send(result.content);
+    }
+    
+    logger.info(`[TEMPLATES] ✅ Arquivo ${filename} servido com sucesso (sem parâmetros)`);
+    
+  } catch (error) {
+    logger.error(`[TEMPLATES] ❌ Erro ao servir arquivo:`, error);
+    res.status(500).json({
       success: false,
       error: error.message
     });
