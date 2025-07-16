@@ -18,20 +18,27 @@
     "metrics": "curl -s -H 'X-Dashboard-Password: admin123' http://localhost:3001/metrics | jq ."
   },
   "dependencies": {
-    "express": "^4.18.2",
-    "express-rate-limit": "^7.1.5",
-    "helmet": "^7.1.0",
-    "cors": "^2.8.5",
-    "dotenv": "^16.3.1",
     "@supabase/supabase-js": "^2.38.5",
     "axios": "^1.6.2",
     "compression": "^1.7.4",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "express-rate-limit": "^7.1.5",
+    "helmet": "^7.1.0",
+    "node-routeros": "^1.6.9",
     "winston": "^3.11.0"
   },
   "devDependencies": {
     "nodemon": "^3.0.2"
   },
-  "keywords": ["mikrotik", "proxy", "api", "rate-limit", "supabase"],
+  "keywords": [
+    "mikrotik",
+    "proxy",
+    "api",
+    "rate-limit",
+    "supabase"
+  ],
   "author": "MikroTik Proxy API",
   "license": "MIT"
 }
