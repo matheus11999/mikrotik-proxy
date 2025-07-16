@@ -296,7 +296,7 @@ router.post('/create-ip-binding/:mikrotikId',
       }
 
       // Criar IP binding do hotspot usando REST API
-      const result = await mikrotikService.makeRequest(mikrotikConfig, '/ip/hotspot/ip-binding', 'POST', bindingData);
+      const result = await mikrotikService.makeRequest(mikrotikConfig, '/ip/hotspot/ip-binding', 'PUT', bindingData);
       
       const responseTime = Date.now() - startTime;
 
