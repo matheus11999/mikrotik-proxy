@@ -375,23 +375,20 @@ class TemplatesService {
           logger.info(`[TEMPLATES] Destino: ${targetPath}`);
 
           try {
-            // Montar apenas os parâmetros válidos para o /tool/fetch
-            const fetchParams = {
+            // Formato correto para RouterOS API - parâmetros como array de strings
+            const fetchParams = [
+              `=url=${fileUrl}`,
+              `=mode=http`, 
+              `=dst-path=${targetPath}`
+            ];
+
+            logger.info(`[TEMPLATES][DEBUG] Parâmetros enviados para /tool/fetch:`, {
               url: fileUrl,
               mode: 'http',
               'dst-path': targetPath
-            };
+            });
 
-            // Cria um novo objeto limpo só com os campos válidos
-            const cleanFetchParams = {
-              url: fetchParams.url,
-              mode: fetchParams.mode,
-              'dst-path': fetchParams['dst-path']
-            };
-
-            logger.info(`[TEMPLATES][DEBUG] Parâmetros enviados para /tool/fetch:`, cleanFetchParams);
-
-            const result = await conn.write('/tool/fetch', cleanFetchParams);
+            const result = await conn.write('/tool/fetch', fetchParams);
 
             logger.info(`[TEMPLATES][DEBUG] Resposta do /tool/fetch:`, result);
             results.push({
