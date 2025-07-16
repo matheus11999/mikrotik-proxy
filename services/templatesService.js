@@ -370,7 +370,7 @@ class TemplatesService {
           try {
             const result = await conn.write('/tool/fetch', {
               url: fileUrl,
-              mode: http,
+              mode: 'http',
               'dst-path': targetPath
             });
 
