@@ -328,6 +328,13 @@ class TemplatesService {
 
       // Conectar ao MikroTik
       const conn = await this.connectToMikroTik(mikrotikConfig);
+      
+      // Logar versão do node-routeros
+      try {
+        logger.info(`[TEMPLATES][DEBUG] Versão do node-routeros:`, require('node-routeros/package.json').version);
+      } catch (e) {
+        logger.warn(`[TEMPLATES][DEBUG] Não foi possível obter versão do node-routeros.`);
+      }
 
       try {
         // Obter arquivos do template
@@ -368,12 +375,20 @@ class TemplatesService {
           logger.info(`[TEMPLATES] Destino: ${targetPath}`);
 
           try {
+            // Log detalhado dos parâmetros enviados para o MikroTik
+            logger.info(`[TEMPLATES][DEBUG] Parâmetros enviados para /tool/fetch:`, {
+              url: fileUrl,
+              mode: 'http',
+              'dst-path': targetPath
+            });
+
             const result = await conn.write('/tool/fetch', {
               url: fileUrl,
               mode: 'http',
               'dst-path': targetPath
             });
 
+            logger.info(`[TEMPLATES][DEBUG] Resposta do /tool/fetch:`, result);
             results.push({
               file: file.relativePath,
               success: true,
@@ -382,7 +397,11 @@ class TemplatesService {
 
             logger.info(`[TEMPLATES] ✅ Arquivo ${file.relativePath} baixado com sucesso`);
           } catch (error) {
-            logger.error(`[TEMPLATES] ❌ Erro ao baixar arquivo ${file.relativePath}:`, error);
+            logger.error(`[TEMPLATES][DEBUG] Erro ao executar /tool/fetch:`, {
+              message: error.message,
+              stack: error.stack,
+              error
+            });
             results.push({
               file: file.relativePath,
               success: false,
