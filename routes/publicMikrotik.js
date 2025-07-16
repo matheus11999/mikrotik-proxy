@@ -283,11 +283,11 @@ router.post('/create-ip-binding/:mikrotikId',
         port: mikrotik.port || 8728
       };
 
-      // Criar objeto do IP binding
+      // Criar objeto do IP binding do hotspot
       const bindingData = {
         address,
         'mac-address': mac_address,
-        disabled: 'false'
+        type: 'bypassed' // ou 'blocked' - bypassed permite acesso sem login
       };
 
       // Adicionar comentário se fornecido
@@ -295,8 +295,8 @@ router.post('/create-ip-binding/:mikrotikId',
         bindingData.comment = comment;
       }
 
-      // Criar IP binding usando REST API
-      const result = await mikrotikService.makeRequest(mikrotikConfig, '/ip/dhcp-server/lease', 'POST', bindingData);
+      // Criar IP binding do hotspot usando REST API
+      const result = await mikrotikService.makeRequest(mikrotikConfig, '/ip/hotspot/ip-binding', 'POST', bindingData);
       
       const responseTime = Date.now() - startTime;
 
@@ -319,6 +319,125 @@ router.post('/create-ip-binding/:mikrotikId',
     } catch (error) {
       const responseTime = Date.now() - startTime;
       logger.error('[PUBLIC] Erro ao criar IP binding:', error);
+
+      res.status(500).json({
+        success: false,
+        error: 'Erro interno do servidor',
+        code: 'INTERNAL_ERROR',
+        responseTime
+      });
+    }
+  }
+);
+
+// Rota pública para verificar IP bindings (sem autenticação)
+router.post('/check-ip-binding/:mikrotikId',
+  publicRateLimit,
+  async (req, res) => {
+    const startTime = Date.now();
+    
+    try {
+      const { mikrotikId } = req.params;
+      const { mac_address, address } = req.body;
+
+      logger.info(`[PUBLIC] Verificando IP binding: ${address || 'any'} -> ${mac_address || 'any'} no MikroTik: ${mikrotikId}`);
+
+      // Validar campos (pelo menos um deve ser fornecido)
+      if (!mac_address && !address) {
+        return res.status(400).json({
+          success: false,
+          error: 'Missing required fields',
+          message: 'mac_address or address is required'
+        });
+      }
+
+      // Buscar dados do MikroTik
+      const { data: mikrotik, error: mikrotikError } = await supabaseService.supabase
+        .from('mikrotiks')
+        .select('id, ip, username, password, port, ativo')
+        .eq('id', mikrotikId)
+        .eq('ativo', true)
+        .single();
+
+      if (mikrotikError || !mikrotik) {
+        return res.status(404).json({
+          success: false,
+          error: 'MikroTik not found',
+          message: 'The specified MikroTik was not found or is not active'
+        });
+      }
+
+      // Configurar credenciais do MikroTik
+      const mikrotikConfig = {
+        id: mikrotik.id,
+        ip: mikrotik.ip,
+        username: mikrotik.username,
+        password: mikrotik.password,
+        port: mikrotik.port || 8728
+      };
+
+      // Buscar TODOS os IP bindings do hotspot
+      const endpoint = `/ip/hotspot/ip-binding`;
+      const result = await mikrotikService.makeRequest(mikrotikConfig, endpoint, 'GET');
+      
+      const responseTime = Date.now() - startTime;
+
+      if (!result.success) {
+        return res.status(200).json({
+          success: false,
+          error: result.error,
+          code: result.code,
+          responseTime
+        });
+      }
+
+      // Verificar se binding existe na lista
+      const bindings = result.data || [];
+      
+      // Buscar por MAC address ou IP address
+      const binding = bindings.find(b => {
+        const macMatch = mac_address && (b['mac-address'] === mac_address || b.address === mac_address);
+        const ipMatch = address && (b.address === address || b['active-address'] === address);
+        return macMatch || ipMatch;
+      });
+      
+      logger.info(`[PUBLIC] Busca binding: ${bindings.length} bindings encontrados, match: ${!!binding}`);
+
+      if (!binding) {
+        return res.status(200).json({
+          success: false,
+          exists: false,
+          message: 'IP binding não encontrado',
+          responseTime,
+          debug: {
+            totalBindings: bindings.length,
+            searchCriteria: { mac_address, address },
+            sampleBindings: bindings.slice(0, 5).map(b => ({
+              address: b.address,
+              macAddress: b['mac-address'],
+              comment: b.comment
+            }))
+          }
+        });
+      }
+
+      res.json({
+        success: true,
+        exists: true,
+        binding: {
+          address: binding.address || binding['active-address'],
+          macAddress: binding['mac-address'],
+          comment: binding.comment,
+          disabled: binding.disabled,
+          dynamic: binding.dynamic,
+          status: binding.status
+        },
+        responseTime
+      });
+
+    } catch (error) {
+      const responseTime = Date.now() - startTime;
+      logger.error('[PUBLIC] Erro ao verificar IP binding:', error);
 
       res.status(500).json({
         success: false,
