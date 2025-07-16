@@ -127,12 +127,42 @@ router.get('/templates/:templateId', (req, res) => {
 // Rota para aplicar template (com autenticação)
 router.post('/templates/apply', authenticateByUserSession, templatesRateLimit, async (req, res) => {
   try {
+    logger.info(`[TEMPLATES] Recebendo request para aplicar template`);
+    logger.info(`[TEMPLATES] Request body:`, req.body);
+    
     const { mikrotikId, templateId, serverProfileId, variables } = req.body;
     
-    if (!mikrotikId || !templateId || !serverProfileId) {
+    logger.info(`[TEMPLATES] Extracted values:`, {
+      mikrotikId: mikrotikId,
+      templateId: templateId,
+      serverProfileId: serverProfileId,
+      variables: variables,
+      mikrotikIdType: typeof mikrotikId,
+      templateIdType: typeof templateId,
+      serverProfileIdType: typeof serverProfileId
+    });
+    
+    if (!mikrotikId) {
+      logger.error(`[TEMPLATES] MikroTik ID is missing or empty`);
       return res.status(400).json({
         success: false,
-        error: 'mikrotikId, templateId e serverProfileId são obrigatórios'
+        error: 'MikroTik ID obrigatório'
+      });
+    }
+    
+    if (!templateId) {
+      logger.error(`[TEMPLATES] Template ID is missing or empty`);
+      return res.status(400).json({
+        success: false,
+        error: 'Template ID obrigatório'
+      });
+    }
+    
+    if (!serverProfileId) {
+      logger.error(`[TEMPLATES] Server Profile ID is missing or empty`);
+      return res.status(400).json({
+        success: false,
+        error: 'Server Profile ID obrigatório'
       });
     }
     
