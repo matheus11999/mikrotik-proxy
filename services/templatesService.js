@@ -382,6 +382,13 @@ class TemplatesService {
               'dst-path': targetPath
             };
 
+            // Checagem defensiva: remover qualquer propriedade extra
+            Object.keys(fetchParams).forEach(key => {
+              if (!['url', 'mode', 'dst-path'].includes(key)) {
+                delete fetchParams[key];
+              }
+            });
+
             logger.info(`[TEMPLATES][DEBUG] Parâmetros enviados para /tool/fetch:`, fetchParams);
 
             const result = await conn.write('/tool/fetch', fetchParams);
