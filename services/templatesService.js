@@ -362,7 +362,8 @@ class TemplatesService {
             const result = await conn.write('/tool/fetch', {
               url: fileUrl,
               'dst-path': targetPath,
-              mode: 'http'
+              mode: 'http',
+              'check-certificate': 'no'
             });
 
             results.push({
@@ -374,11 +375,32 @@ class TemplatesService {
             logger.info(`[TEMPLATES] ✅ Arquivo ${file.relativePath} baixado com sucesso`);
           } catch (error) {
             logger.error(`[TEMPLATES] ❌ Erro ao baixar arquivo ${file.relativePath}:`, error);
-            results.push({
-              file: file.relativePath,
-              success: false,
-              error: error.message
-            });
+            
+            // Tentar sintaxe alternativa se a primeira falhar
+            try {
+              logger.info(`[TEMPLATES] Tentando sintaxe alternativa para ${file.relativePath}`);
+              const result2 = await conn.write('/tool/fetch', [
+                `url=${fileUrl}`,
+                `dst-path=${targetPath}`,
+                'mode=http',
+                'check-certificate=no'
+              ]);
+              
+              results.push({
+                file: file.relativePath,
+                success: true,
+                result: result2
+              });
+              
+              logger.info(`[TEMPLATES] ✅ Arquivo ${file.relativePath} baixado com sucesso (sintaxe alternativa)`);
+            } catch (error2) {
+              logger.error(`[TEMPLATES] ❌ Erro na sintaxe alternativa para ${file.relativePath}:`, error2);
+              results.push({
+                file: file.relativePath,
+                success: false,
+                error: error2.message
+              });
+            }
           }
         }
 
