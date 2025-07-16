@@ -55,8 +55,8 @@ router.post('/check-voucher/:mikrotikId',
         port: mikrotik.port || 8728
       };
 
-      // Buscar usuário hotspot usando a REST API do MikroTik
-      const endpoint = `/ip/hotspot/user?name=${encodeURIComponent(username)}`;
+      // Buscar TODOS os usuários hotspot e filtrar pelo nome
+      const endpoint = `/ip/hotspot/user`;
       const result = await mikrotikService.makeRequest(mikrotikConfig, endpoint, 'GET');
       
       const responseTime = Date.now() - startTime;
@@ -70,16 +70,37 @@ router.post('/check-voucher/:mikrotikId',
         });
       }
 
-      // Verificar se usuário existe
+      // Verificar se usuário existe na lista completa
       const users = result.data || [];
-      const user = users.find(u => u.name === username);
+      
+      // Debug: verificar estrutura dos dados
+      logger.info(`[PUBLIC] Busca por usuário ${username}: ${users.length} usuários encontrados`);
+      if (users.length > 0) {
+        logger.info(`[PUBLIC] Exemplo de usuário encontrado:`, users[0]);
+        logger.info(`[PUBLIC] Nomes dos primeiros 5 usuários:`, users.slice(0, 5).map(u => u.name || u['.id'] || u));
+      }
+      
+      // Buscar por name (padrão) ou outros campos possíveis
+      const user = users.find(u => 
+        u.name === username || 
+        u['.id'] === username || 
+        u.user === username ||
+        (typeof u === 'string' && u === username)
+      );
+      
+      logger.info(`[PUBLIC] Match encontrado: ${!!user}`, user ? { name: user.name, id: user['.id'] } : null);
 
       if (!user) {
         return res.status(200).json({
           success: false,
           exists: false,
           message: 'Voucher não encontrado',
-          responseTime
+          responseTime,
+          debug: {
+            totalUsers: users.length,
+            sampleUserNames: users.slice(0, 10).map(u => u.name || u['.id'] || JSON.stringify(u).substring(0, 50)),
+            searchedUsername: username
+          }
         });
       }
 
@@ -177,12 +198,20 @@ router.post('/create-hotspot-user/:mikrotikId',
       
       const responseTime = Date.now() - startTime;
 
+      logger.info(`[PUBLIC] Resultado da criação de usuário ${name}:`, {
+        success: result.success,
+        error: result.error,
+        data: result.data,
+        status: result.status
+      });
+
       if (!result.success) {
         return res.status(200).json({
           success: false,
           error: result.error,
           code: result.code,
-          responseTime
+          responseTime,
+          details: result.data // Adicionar detalhes para debug
         });
       }
 
@@ -190,6 +219,7 @@ router.post('/create-hotspot-user/:mikrotikId',
         success: true,
         message: 'Usuário hotspot criado com sucesso',
         user: userData,
+        mikrotikResponse: result.data, // Adicionar resposta do MikroTik
         responseTime
       });
 
