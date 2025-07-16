@@ -29,9 +29,21 @@ setInterval(cleanExpiredCache, 120000);
 // Middleware de autenticação segura usando session token do usuário
 async function authenticateByUserSession(req, res, next) {
   try {
+    // Log temporário para templates
+    if (req.path.includes('templates')) {
+      logger.info(`[AUTH] Template auth request`, {
+        path: req.path,
+        method: req.method,
+        hasAuth: !!req.headers.authorization
+      });
+    }
+    
     const authHeader = req.headers.authorization;
     
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      if (req.path.includes('templates')) {
+        logger.error(`[AUTH] Template auth failed - no token`);
+      }
       return res.status(401).json({
         error: 'Token de autorização obrigatório',
         code: 'MISSING_TOKEN'
@@ -230,7 +242,73 @@ setInterval(() => {
   }
 }, 120000); // Executa a cada 2 minutos
 
+// Middleware de autenticação simples para templates (sem verificação de mikrotikId na URL)
+async function authenticateUserOnly(req, res, next) {
+  try {
+    const authHeader = req.headers.authorization;
+    
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({
+        error: 'Token de autorização obrigatório',
+        code: 'MISSING_TOKEN'
+      });
+    }
+
+    const userSessionToken = authHeader.substring(7);
+    const tokenHash = userSessionToken.substring(0, 16); // Hash curto para cache
+    
+    // Verificar cache primeiro
+    let user = null;
+    const cachedUser = userCache.get(tokenHash);
+    
+    if (cachedUser && (Date.now() - cachedUser.timestamp) < CACHE_TTL) {
+      user = cachedUser.user;
+      logger.debug(`User cache hit for ${user.email}`);
+    } else {
+      // Verificar o token do usuário no Supabase
+      const { createClient } = require('@supabase/supabase-js');
+      const supabase = createClient(
+        process.env.SUPABASE_URL,
+        process.env.SUPABASE_ANON_KEY
+      );
+
+      const { data: { user: supabaseUser }, error } = await supabase.auth.getUser(userSessionToken);
+      
+      if (error || !supabaseUser) {
+        return res.status(401).json({
+          error: 'Token inválido ou expirado',
+          code: 'INVALID_TOKEN'
+        });
+      }
+
+      user = {
+        id: supabaseUser.id,
+        email: supabaseUser.email,
+        user_metadata: supabaseUser.user_metadata
+      };
+
+      // Salvar no cache
+      userCache.set(tokenHash, { user, timestamp: Date.now() });
+      logger.debug(`User cached for ${user.email}`);
+    }
+
+    // Adicionar usuário ao request
+    req.user = user;
+    
+    logger.info(`Template access authorized for user ${user.email}`);
+    next();
+    
+  } catch (error) {
+    logger.error('Error in template authentication:', error);
+    return res.status(500).json({
+      error: 'Erro interno na autenticação',
+      code: 'AUTH_ERROR'
+    });
+  }
+}
+
 module.exports = {
   authenticateByUserSession,
+  authenticateUserOnly,
   rateLimitByUser
 };

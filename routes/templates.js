@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const templatesService = require('../services/templatesService');
-const { authenticateByUserSession, rateLimitByUser } = require('../middleware/secureAuth');
+const { authenticateByUserSession, authenticateUserOnly, rateLimitByUser } = require('../middleware/secureAuth');
 const logger = require('../utils/logger');
 
 // Rate limiting para templates
@@ -125,7 +125,7 @@ router.get('/templates/:templateId', (req, res) => {
 });
 
 // Rota para aplicar template (com autenticação)
-router.post('/templates/apply', authenticateByUserSession, templatesRateLimit, async (req, res) => {
+router.post('/templates/apply', authenticateUserOnly, templatesRateLimit, async (req, res) => {
   logger.info(`[TEMPLATES] ===== ROTA CHAMADA =====`);
   logger.info(`[TEMPLATES] Method: ${req.method}`);
   logger.info(`[TEMPLATES] Path: ${req.path}`);
