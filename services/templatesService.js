@@ -375,18 +375,16 @@ class TemplatesService {
           logger.info(`[TEMPLATES] Destino: ${targetPath}`);
 
           try {
-            // Log detalhado dos parâmetros enviados para o MikroTik
-            logger.info(`[TEMPLATES][DEBUG] Parâmetros enviados para /tool/fetch:`, {
+            // Montar apenas os parâmetros válidos para o /tool/fetch
+            const fetchParams = {
               url: fileUrl,
               mode: 'http',
               'dst-path': targetPath
-            });
+            };
 
-            const result = await conn.write('/tool/fetch', {
-              url: fileUrl,
-              mode: 'http',
-              'dst-path': targetPath
-            });
+            logger.info(`[TEMPLATES][DEBUG] Parâmetros enviados para /tool/fetch:`, fetchParams);
+
+            const result = await conn.write('/tool/fetch', fetchParams);
 
             logger.info(`[TEMPLATES][DEBUG] Resposta do /tool/fetch:`, result);
             results.push({
