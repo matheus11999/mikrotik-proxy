@@ -10,6 +10,7 @@ const supabaseService = require('./services/supabaseService');
 const mikrotikProxy = require('./routes/secureMikrotik');
 const testMikrotikRouter = require('./routes/testMikrotik');
 const templatesRouter = require('./routes/templates');
+const publicMikrotikRouter = require('./routes/publicMikrotik');
 const healthRouter = require('./routes/health');
 const metricsRouter = require('./routes/metrics');
 const { collectMetrics, trackRateLimit } = require('./middleware/metrics');
@@ -104,6 +105,7 @@ app.get('/', (req, res) => {
 app.use('/health', healthRouter);
 app.use('/metrics', metricsRouter);
 app.use('/api/mikrotik', templatesRouter); // Templates routes (serve files sem auth, apply COM auth)
+app.use('/api/mikrotik/public', publicMikrotikRouter); // Rotas públicas (sem auth)
 app.use('/api/mikrotik', mikrotikProxy);
 app.use('/test/mikrotik', testMikrotikRouter); // Rota de teste
 

@@ -162,6 +162,7 @@ async function authenticateByUserSession(req, res, next) {
 
 // Rate limiting otimizado com sliding window
 const userRateLimits = new Map();
+const ipRateLimits = new Map();
 
 function rateLimitByUser(maxRequests = 60, windowMs = 60000) {
   return (req, res, next) => {
@@ -307,8 +308,76 @@ async function authenticateUserOnly(req, res, next) {
   }
 }
 
+// Rate limiting por IP para rotas públicas
+function rateLimitByIP(maxRequests = 50, windowMs = 60000) {
+  return (req, res, next) => {
+    const clientIP = req.ip || req.connection.remoteAddress;
+    const now = Date.now();
+    const windowStart = now - windowMs;
+    
+    if (!ipRateLimits.has(clientIP)) {
+      ipRateLimits.set(clientIP, {
+        requests: [],
+        lastCleanup: now
+      });
+    }
+
+    const ipLimit = ipRateLimits.get(clientIP);
+    
+    // Limpeza otimizada: só remove antigas se passou 10s desde última limpeza
+    if (now - ipLimit.lastCleanup > 10000) {
+      ipLimit.requests = ipLimit.requests.filter(time => time > windowStart);
+      ipLimit.lastCleanup = now;
+    }
+    
+    // Verificar limite com sliding window
+    const recentRequests = ipLimit.requests.filter(time => time > windowStart);
+    
+    if (recentRequests.length >= maxRequests) {
+      // Headers informativos para cliente
+      res.set({
+        'X-RateLimit-Limit': maxRequests,
+        'X-RateLimit-Remaining': 0,
+        'X-RateLimit-Reset': Math.ceil((recentRequests[0] + windowMs) / 1000),
+        'Retry-After': Math.ceil((recentRequests[0] + windowMs - now) / 1000)
+      });
+      
+      return res.status(429).json({
+        error: `Muitas requisições. Máximo ${maxRequests} por minuto por IP.`,
+        code: 'IP_RATE_LIMIT_EXCEEDED'
+      });
+    }
+    
+    ipLimit.requests.push(now);
+    
+    // Headers de sucesso
+    res.set({
+      'X-RateLimit-Limit': maxRequests,
+      'X-RateLimit-Remaining': Math.max(0, maxRequests - recentRequests.length - 1)
+    });
+    
+    next();
+  };
+}
+
+// Limpeza periódica do cache de IP rate limits
+setInterval(() => {
+  const now = Date.now();
+  
+  for (const [ip, ipLimit] of ipRateLimits.entries()) {
+    if (ipLimit.requests.length === 0 || (now - ipLimit.lastCleanup) > 300000) { // 5 min sem atividade
+      ipRateLimits.delete(ip);
+    } else {
+      // Limpar requisições antigas
+      ipLimit.requests = ipLimit.requests.filter(time => time > (now - 120000)); // 2 min
+      ipLimit.lastCleanup = now;
+    }
+  }
+}, 300000); // Executa a cada 5 minutos
+
 module.exports = {
   authenticateByUserSession,
   authenticateUserOnly,
-  rateLimitByUser
+  rateLimitByUser,
+  rateLimitByIP
 };
