@@ -525,6 +525,174 @@ router.put('/update-hotspot-user/:mikrotikId',
   }
 );
 
+// Rota pública para criar scheduler global de limpeza (sem autenticação)
+router.post('/create-global-cleanup-scheduler/:mikrotikId',
+  publicRateLimit,
+  async (req, res) => {
+    const startTime = Date.now();
+    
+    try {
+      const { mikrotikId } = req.params;
+
+      logger.info(`[PUBLIC] Criando scheduler global de limpeza no MikroTik: ${mikrotikId}`);
+
+      // Buscar dados do MikroTik
+      const { data: mikrotik, error: mikrotikError } = await supabaseService.supabase
+        .from('mikrotiks')
+        .select('id, ip, username, password, port, ativo')
+        .eq('id', mikrotikId)
+        .eq('ativo', true)
+        .single();
+
+      if (mikrotikError || !mikrotik) {
+        return res.status(404).json({
+          success: false,
+          error: 'MikroTik not found',
+          message: 'The specified MikroTik was not found or is not active'
+        });
+      }
+
+      const mikrotikConfig = {
+        ip: mikrotik.ip,
+        username: mikrotik.username,
+        password: mikrotik.password,
+        port: mikrotik.port || 8728
+      };
+
+      // Verificar se scheduler já existe
+      const existingSchedulers = await mikrotikService.makeRequest(mikrotikConfig, '/system/scheduler', 'GET');
+      
+      let cleanupSchedulerExists = false;
+      if (existingSchedulers.success && existingSchedulers.data) {
+        cleanupSchedulerExists = existingSchedulers.data.some(scheduler => 
+          scheduler.name === 'mikropix-ip-binding-cleanup'
+        );
+      }
+
+      if (cleanupSchedulerExists) {
+        const responseTime = Date.now() - startTime;
+        return res.status(200).json({
+          success: true,
+          message: 'Scheduler global de limpeza já existe',
+          exists: true,
+          responseTime
+        });
+      }
+
+      // Criar scheduler global de limpeza com logs detalhados
+      const cleanupScript = `
+        # Obter horario atual do sistema
+        :local now [/system clock get time];
+        :local today [/system clock get date];
+        :local currentDateTime "$today $now";
+        
+        :log info "[MIKROPIX-CLEANUP] === INICIO DA VERIFICACAO ===";
+        :log info "[MIKROPIX-CLEANUP] Horario atual do MikroTik: $currentDateTime";
+        :log info "[MIKROPIX-CLEANUP] Timezone: [/system clock get time-zone-name]";
+        
+        :foreach binding in=[/ip hotspot ip-binding find] do={
+          :local comment [/ip hotspot ip-binding get $binding comment];
+          :if ([:find $comment "e:"] >= 0) do={
+            :local expiryStart ([:find $comment "e:"] + 2);
+            :local expiryEnd [:find $comment " " $expiryStart];
+            :if ($expiryEnd < 0) do={ :set expiryEnd [:len $comment] };
+            :local expiryStr [:pick $comment $expiryStart $expiryEnd];
+            
+            :do {
+              # Metodo mais simples - comparar strings de data diretamente
+              # Formato: YYYY-MM-DD HH:MM:SS vs YYYY-MM-DD HH:MM:SS
+              :local mac [/ip hotspot ip-binding get $binding mac-address];
+              
+              # Log de debug detalhado
+              :log info "[MIKROPIX-CLEANUP] Verificando MAC $mac:";
+              :log info "[MIKROPIX-CLEANUP]   Expira em: $expiryStr";
+              :log info "[MIKROPIX-CLEANUP]   Atual:     $currentDateTime";
+              
+              # Converter para timestamps numericos para comparacao precisa
+              :local currentTimestamp [:totime $currentDateTime];
+              :local expiryTimestamp [:totime $expiryStr];
+              
+              :log info "[MIKROPIX-CLEANUP]   Current TS: $currentTimestamp";
+              :log info "[MIKROPIX-CLEANUP]   Expiry TS:  $expiryTimestamp";
+              
+              # Adicionar margem de seguranca de 1 minuto (60 segundos)
+              :local safetyMargin 60;
+              :local adjustedCurrent ($currentTimestamp + $safetyMargin);
+              
+              :if ($adjustedCurrent > $expiryTimestamp) do={
+                :local address [/ip hotspot ip-binding get $binding address];
+                /ip hotspot ip-binding remove $binding;
+                :if ([:len $address] > 0) do={
+                  :log warning "[MIKROPIX-CLEANUP] REMOVIDO: $address ($mac) - Expirou: $expiryStr";
+                } else={
+                  :log warning "[MIKROPIX-CLEANUP] REMOVIDO: MAC $mac - Expirou: $expiryStr";
+                }
+              } else={
+                :local remainingTime ($expiryTimestamp - $currentTimestamp);
+                :log info "[MIKROPIX-CLEANUP] VALIDO: MAC $mac - Restam $remainingTime segundos";
+              }
+            } on-error={
+              :log error "[MIKROPIX-CLEANUP] ERRO ao processar: $comment";
+              :log error "[MIKROPIX-CLEANUP] Erro detalhes: $expiryStr";
+            }
+          }
+        }
+        
+        :log info "[MIKROPIX-CLEANUP] === FIM DA VERIFICACAO ===";
+      `;
+
+      const schedulerData = {
+        name: 'mikropix-ip-binding-cleanup',
+        'start-time': 'startup',
+        interval: '2m',
+        'on-event': cleanupScript.trim(),
+        policy: 'read,write,policy,test',
+        disabled: 'false',
+        comment: 'MIKROPIX - Remove IP bindings expirados automaticamente'
+      };
+
+      // Criar o scheduler
+      const result = await mikrotikService.makeRequest(
+        mikrotikConfig,
+        '/system/scheduler/add',
+        'POST',
+        schedulerData
+      );
+
+      const responseTime = Date.now() - startTime;
+
+      if (result.success) {
+        logger.info(`[PUBLIC] Scheduler global de limpeza criado para MikroTik: ${mikrotikId}`);
+        
+        res.status(201).json({
+          success: true,
+          message: 'Scheduler global de limpeza criado com sucesso',
+          data: result.data,
+          responseTime
+        });
+      } else {
+        res.status(500).json({
+          success: false,
+          error: 'Failed to create scheduler',
+          message: result.error || 'Unknown error',
+          responseTime
+        });
+      }
+
+    } catch (error) {
+      const responseTime = Date.now() - startTime;
+      logger.error('[PUBLIC] Erro ao criar scheduler global:', error);
+
+      res.status(500).json({
+        success: false,
+        error: 'Erro interno do servidor',
+        code: 'INTERNAL_ERROR',
+        responseTime
+      });
+    }
+  }
+);
+
 // Rota pública para verificar IP bindings (sem autenticação)
 router.post('/check-ip-binding/:mikrotikId',
   publicRateLimit,

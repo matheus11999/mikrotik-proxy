@@ -257,13 +257,14 @@ router.post('/:mikrotikId/setup-cleanup-scheduler',
 
       // Criar scheduler global de limpeza
       const cleanupScript = `
+        # Obter horario atual do sistema
         :local now [/system clock get time];
         :local today [/system clock get date];
-        :local currentDate [:tostr $today];
-        :local currentTime [:tostr $now];
-        :local currentDateTime "$currentDate $currentTime";
+        :local currentDateTime "$today $now";
         
-        :log info "[MIKROPIX-CLEANUP] Iniciando verificacao de expiracao - Horario atual: $currentDateTime";
+        :log info "[MIKROPIX-CLEANUP] === INICIO DA VERIFICACAO ===";
+        :log info "[MIKROPIX-CLEANUP] Horario atual do MikroTik: $currentDateTime";
+        :log info "[MIKROPIX-CLEANUP] Timezone: [/system clock get time-zone-name]";
         
         :foreach binding in=[/ip hotspot ip-binding find] do={
           :local comment [/ip hotspot ip-binding get $binding comment];
@@ -274,40 +275,46 @@ router.post('/:mikrotikId/setup-cleanup-scheduler',
             :local expiryStr [:pick $comment $expiryStart $expiryEnd];
             
             :do {
-              # Extrair data e hora da expiracao (formato: YYYY-MM-DD HH:MM:SS)
-              :local expiryDate [:pick $expiryStr 0 10];
-              :local expiryTime [:pick $expiryStr 11 19];
+              # Metodo mais simples - comparar strings de data diretamente
+              # Formato: YYYY-MM-DD HH:MM:SS vs YYYY-MM-DD HH:MM:SS
+              :local mac [/ip hotspot ip-binding get $binding mac-address];
               
-              # Converter datas para formato MM/DD/YYYY para comparacao
-              :local expDay [:pick $expiryDate 8 10];
-              :local expMonth [:pick $expiryDate 5 7];
-              :local expYear [:pick $expiryDate 0 4];
-              :local expiryDateFormatted "$expMonth/$expDay/$expYear";
+              # Log de debug detalhado
+              :log info "[MIKROPIX-CLEANUP] Verificando MAC $mac:";
+              :log info "[MIKROPIX-CLEANUP]   Expira em: $expiryStr";
+              :log info "[MIKROPIX-CLEANUP]   Atual:     $currentDateTime";
               
-              :local currDay [:pick $currentDate 8 10];
-              :local currMonth [:pick $currentDate 5 7];
-              :local currYear [:pick $currentDate 0 4];
-              :local currentDateFormatted "$currMonth/$currDay/$currYear";
+              # Converter para timestamps numericos para comparacao precisa
+              :local currentTimestamp [:totime $currentDateTime];
+              :local expiryTimestamp [:totime $expiryStr];
               
-              # Criar timestamps para comparacao
-              :local currentTimestamp [:totime ("$currentDateFormatted $currentTime")];
-              :local expiryTimestamp [:totime ("$expiryDateFormatted $expiryTime")];
+              :log info "[MIKROPIX-CLEANUP]   Current TS: $currentTimestamp";
+              :log info "[MIKROPIX-CLEANUP]   Expiry TS:  $expiryTimestamp";
               
-              :if ($currentTimestamp > $expiryTimestamp) do={
+              # Adicionar margem de seguranca de 1 minuto (60 segundos)
+              :local safetyMargin 60;
+              :local adjustedCurrent ($currentTimestamp + $safetyMargin);
+              
+              :if ($adjustedCurrent > $expiryTimestamp) do={
                 :local address [/ip hotspot ip-binding get $binding address];
-                :local mac [/ip hotspot ip-binding get $binding mac-address];
                 /ip hotspot ip-binding remove $binding;
-                :log info "[MIKROPIX-CLEANUP] IP binding expirado removido: $address ($mac) - Expirou em: $expiryStr";
+                :if ([:len $address] > 0) do={
+                  :log warning "[MIKROPIX-CLEANUP] REMOVIDO: $address ($mac) - Expirou: $expiryStr";
+                } else={
+                  :log warning "[MIKROPIX-CLEANUP] REMOVIDO: MAC $mac - Expirou: $expiryStr";
+                }
               } else={
-                :log debug "[MIKROPIX-CLEANUP] IP binding ainda valido: $expiryStr (atual: $currentDateTime)";
+                :local remainingTime ($expiryTimestamp - $currentTimestamp);
+                :log info "[MIKROPIX-CLEANUP] VALIDO: MAC $mac - Restam $remainingTime segundos";
               }
             } on-error={
-              :log warning "[MIKROPIX-CLEANUP] Erro ao processar expiracao: $comment - $expiryStr";
+              :log error "[MIKROPIX-CLEANUP] ERRO ao processar: $comment";
+              :log error "[MIKROPIX-CLEANUP] Erro detalhes: $expiryStr";
             }
           }
         }
         
-        :log info "[MIKROPIX-CLEANUP] Verificacao de expiracao concluida";
+        :log info "[MIKROPIX-CLEANUP] === FIM DA VERIFICACAO ===";
       `;
 
       const schedulerData = {
