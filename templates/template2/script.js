@@ -776,10 +776,20 @@ function loginWithPassword() {
     // Usar CONFIG diretamente se state não estiver definido
     const apiUrl = state.apiUrl || CONFIG.API_URL;
     const mikrotikId = state.mikrotikId || CONFIG.MIKROTIK_ID;
+    const proxyUrl = state.mikrotikProxyUrl || CONFIG.MIKROTIK_PROXY_URL;
     
-    // Se não temos configuração da API, fazer login direto
-    if (!apiUrl || !mikrotikId) {
-        debugLog('⚠️ Configuração da API não encontrada, fazendo login direto');
+    debugLog('🔧 Configurações para verificação:', {
+        apiUrl: apiUrl,
+        mikrotikId: mikrotikId,
+        proxyUrl: proxyUrl,
+        password: password
+    });
+    
+    // Se não temos configuração da API proxy ou mikrotikId, fazer login direto
+    if (!proxyUrl || !mikrotikId) {
+        debugLog('⚠️ Configuração da API Proxy ou MikroTik ID não encontrada, fazendo login direto');
+        debugLog('⚠️ proxyUrl:', proxyUrl);
+        debugLog('⚠️ mikrotikId:', mikrotikId);
         updateVerificationText('🔄 Conectando diretamente...');
         setTimeout(() => {
             loginDirectly(password);
@@ -795,13 +805,16 @@ function loginWithPassword() {
         mikrotik_id: mikrotikId,
         mac: state.mac,
         ip: state.ip,
-        apiUrl: apiUrl
+        proxyUrl: proxyUrl
     });
     
-    // Verificar voucher via Proxy API (mais confiável)
-    const proxyUrl = state.mikrotikProxyUrl || CONFIG.MIKROTIK_PROXY_URL;
+    // Construir URL de verificação
+    const checkUrl = `${proxyUrl}/api/mikrotik/public/check-voucher/${mikrotikId}`;
     
-    fetch(proxyUrl + '/api/mikrotik/public/check-voucher/' + mikrotikId, {
+    debugLog('🔗 Verificando voucher via URL:', checkUrl);
+    debugLog('📋 Dados enviados:', { username: password });
+    
+    fetch(checkUrl, {
         method: 'POST',
         headers: { 
             'Content-Type': 'application/json',
@@ -815,8 +828,13 @@ function loginWithPassword() {
         debugLog('📥 Resposta da API:', {
             status: response.status,
             statusText: response.statusText,
-            ok: response.ok
+            ok: response.ok,
+            url: response.url
         });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
         
         return response.json();
     })
@@ -862,7 +880,21 @@ function loginWithPassword() {
         } else {
             // Erro na verificação - implementar fallback
             debugError('❌ Voucher não encontrado via proxy API:', result);
-            updateVerificationText('⚠️ Voucher não encontrado via proxy<br><span style="font-size: 0.9rem; opacity: 0.9;">Tentando autenticação direta...</span>');
+            debugError('❌ Debug info da resposta:', {
+                success: result.success,
+                exists: result.exists,
+                message: result.message,
+                debug: result.debug,
+                error: result.error
+            });
+            
+            // Mostrar informações de debug se disponíveis
+            let debugMessage = 'Tentando autenticação direta...';
+            if (result.debug && result.debug.totalUsers !== undefined) {
+                debugMessage = `${result.debug.totalUsers} usuários no MikroTik. Tentando direta...`;
+            }
+            
+            updateVerificationText(`⚠️ Voucher não encontrado via proxy<br><span style="font-size: 0.9rem; opacity: 0.9;">${debugMessage}</span>`);
             
             // Fallback: tentar login direto após 2 segundos
             setTimeout(function() {
@@ -876,15 +908,30 @@ function loginWithPassword() {
     })
     .catch(function(error) {
         debugError('❌ Erro na comunicação com Proxy API:', error);
+        debugError('❌ Erro detalhado:', {
+            message: error.message,
+            stack: error.stack,
+            name: error.name,
+            cause: error.cause
+        });
         
         // Mostrar mensagem específica baseada no tipo de erro
-        if (error.message && error.message.includes('socket hang up')) {
-            updateVerificationText('⚠️ Timeout na verificação<br><span style="font-size: 0.9rem; opacity: 0.9;">Tentando autenticação direta...</span>');
-        } else if (error.message && error.message.includes('network')) {
-            updateVerificationText('⚠️ Erro de rede<br><span style="font-size: 0.9rem; opacity: 0.9;">Tentando autenticação direta...</span>');
-        } else {
-            updateVerificationText('⚠️ Erro de conexão<br><span style="font-size: 0.9rem; opacity: 0.9;">Tentando autenticação direta...</span>');
+        let errorMessage = 'Erro de conexão';
+        if (error.message) {
+            if (error.message.includes('socket hang up') || error.message.includes('timeout')) {
+                errorMessage = 'Timeout na verificação';
+            } else if (error.message.includes('network') || error.message.includes('Failed to fetch')) {
+                errorMessage = 'Erro de rede';
+            } else if (error.message.includes('HTTP 500')) {
+                errorMessage = 'Erro no servidor proxy';
+            } else if (error.message.includes('HTTP 404')) {
+                errorMessage = 'API não encontrada';
+            } else if (error.message.includes('HTTP')) {
+                errorMessage = `Erro HTTP: ${error.message}`;
+            }
         }
+        
+        updateVerificationText(`⚠️ ${errorMessage}<br><span style="font-size: 0.9rem; opacity: 0.9;">Tentando autenticação direta...</span>`);
         
         // Em caso de erro de conexão, fazer login direto após delay mais curto
         setTimeout(function() {
