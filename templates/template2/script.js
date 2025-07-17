@@ -4,7 +4,8 @@
 const CONFIG = {
     // VARIÁVEIS SUBSTITUÍDAS AUTOMATICAMENTE:
     MIKROTIK_ID: '{{MIKROTIK_ID}}',  // ← ID do MikroTik atual
-    API_URL: '{{API_URL}}',  // ← URL da API (do .env)
+    API_URL: '{{API_URL}}',  // ← URL da API Backend (do .env)
+    MIKROTIK_PROXY_URL: '{{MIKROTIK_PROXY_URL}}', // ← URL da API MikroTik Proxy
     
     // Outras configurações:
     CHECK_INTERVAL: 5000,      // Intervalo de verificação (5 segundos)
@@ -41,6 +42,7 @@ const state = {
     linkLogin: null,
     mikrotikId: CONFIG.MIKROTIK_ID,
     apiUrl: CONFIG.API_URL,
+    mikrotikProxyUrl: CONFIG.MIKROTIK_PROXY_URL,
     debug: CONFIG.DEBUG,
     plans: [],
     selectedPlan: null,
@@ -199,19 +201,23 @@ function initializeApp() {
     console.log('=== TEMPLATE CONFIGURATION ===');
     console.log('MIKROTIK_ID:', CONFIG.MIKROTIK_ID);
     console.log('API_URL:', CONFIG.API_URL);
+    console.log('MIKROTIK_PROXY_URL:', CONFIG.MIKROTIK_PROXY_URL);
     console.log('DEBUG:', CONFIG.DEBUG);
     console.log('============================');
     
     // Check if variables were properly substituted
     const hasValidMikrotikId = CONFIG.MIKROTIK_ID && !CONFIG.MIKROTIK_ID.includes('{{');
     const hasValidApiUrl = CONFIG.API_URL && !CONFIG.API_URL.includes('{{');
+    const hasValidMikrotikProxyUrl = CONFIG.MIKROTIK_PROXY_URL && !CONFIG.MIKROTIK_PROXY_URL.includes('{{');
     
     console.log('Valid MIKROTIK_ID?', hasValidMikrotikId);
     console.log('Valid API_URL?', hasValidApiUrl);
+    console.log('Valid MIKROTIK_PROXY_URL?', hasValidMikrotikProxyUrl);
     
     // Initialize variables
     state.mikrotikId = hasValidMikrotikId ? CONFIG.MIKROTIK_ID : null;
     state.apiUrl = hasValidApiUrl ? CONFIG.API_URL : null;
+    state.mikrotikProxyUrl = hasValidMikrotikProxyUrl ? CONFIG.MIKROTIK_PROXY_URL : null;
     
     // If debug mode is enabled, use mocked data
     if (state.debug) {
@@ -231,6 +237,10 @@ function initializeApp() {
             state.apiUrl = 'https://api.mikropix.online';
             console.warn('⚠️ API_URL not substituted, using debug value');
         }
+        if (!hasValidMikrotikProxyUrl) {
+            state.mikrotikProxyUrl = 'http://router.mikropix.online:3001';
+            console.warn('⚠️ MIKROTIK_PROXY_URL not substituted, using debug value');
+        }
         
         // Garantir que as variáveis mockadas sejam usadas
         debugLog('🔧 Dados mockados definidos:', {
@@ -238,7 +248,8 @@ function initializeApp() {
             ip: state.ip,
             interface: state.interface,
             mikrotikId: state.mikrotikId,
-            apiUrl: state.apiUrl
+            apiUrl: state.apiUrl,
+            mikrotikProxyUrl: state.mikrotikProxyUrl
         });
     } else {
         // Initialize with MikroTik variables for production
@@ -255,11 +266,15 @@ function initializeApp() {
         // Override with CONFIG values
         state.mikrotikId = state.mikrotikId || CONFIG.MIKROTIK_ID;
         state.apiUrl = state.apiUrl || CONFIG.API_URL;
+        state.mikrotikProxyUrl = state.mikrotikProxyUrl || CONFIG.MIKROTIK_PROXY_URL;
     }
     
-    // Clean API URL
+    // Clean API URLs
     if (state.apiUrl) {
         state.apiUrl = state.apiUrl.replace(/\/$/, '');
+    }
+    if (state.mikrotikProxyUrl) {
+        state.mikrotikProxyUrl = state.mikrotikProxyUrl.replace(/\/$/, '');
     }
     
     // Update debug info
@@ -269,15 +284,17 @@ function initializeApp() {
     debugLog('Configuration:', CONFIG);
     
     // Check if we have required configuration
-    if (!state.mikrotikId || !state.apiUrl) {
+    if (!state.mikrotikId || !state.apiUrl || !state.mikrotikProxyUrl) {
         console.warn('⚠️ Configuração incompleta. Modo offline ativado.');
         console.warn('MIKROTIK_ID:', state.mikrotikId);
         console.warn('API_URL:', state.apiUrl);
-        showMessage('⚠️ Configure MIKROTIK_ID e API_URL no template', 'error');
+        console.warn('MIKROTIK_PROXY_URL:', state.mikrotikProxyUrl);
+        showMessage('⚠️ Configure MIKROTIK_ID, API_URL e MIKROTIK_PROXY_URL no template', 'error');
     } else {
         console.log('✅ Configuração completa:', {
             mikrotikId: state.mikrotikId,
-            apiUrl: state.apiUrl
+            apiUrl: state.apiUrl,
+            mikrotikProxyUrl: state.mikrotikProxyUrl
         });
     }
     
@@ -287,7 +304,8 @@ function initializeApp() {
         debugInfo.innerHTML = `
             <div style="margin-top: 20px; padding: 15px; background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 12px; font-size: 11px; color: #f1f5f9; font-family: monospace;">
                 <strong style="color: #3b82f6;">🔧 DEBUG MODE</strong><br>
-                <span style="opacity: 0.8;">API: ${state.apiUrl}</span><br>
+                <span style="opacity: 0.8;">Backend API: ${state.apiUrl}</span><br>
+                <span style="opacity: 0.8;">MikroTik Proxy: ${state.mikrotikProxyUrl}</span><br>
                 <span style="opacity: 0.8;">MikroTik ID: ${state.mikrotikId}</span><br>
                 <span style="opacity: 0.8;">MAC: ${state.mac} (mocked)</span><br>
                 <span style="opacity: 0.8;">IP: ${state.ip} (mocked)</span><br>
@@ -568,7 +586,8 @@ function updateDebugInfo(info) {
             <span style="opacity: 0.8;">MAC: ${state.mac || 'N/A'}</span><br>
             <span style="opacity: 0.8;">IP: ${state.ip || 'N/A'}</span><br>
             <span style="opacity: 0.8;">MikroTik ID: ${state.mikrotikId || 'N/A'}</span><br>
-            <span style="opacity: 0.8;">API URL: ${state.apiUrl || 'N/A'}</span>
+            <span style="opacity: 0.8;">Backend API: ${state.apiUrl || 'N/A'}</span><br>
+            <span style="opacity: 0.8;">MikroTik Proxy: ${state.mikrotikProxyUrl || 'N/A'}</span>
         `;
     }
 }

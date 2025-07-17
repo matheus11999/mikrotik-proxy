@@ -1,133 +1,139 @@
-# 🛡️ MikroTik Proxy API - Sistema de Proxy Seguro para RouterOS v7+ (PRODUÇÃO)
+# 🛡️ MikroTik Proxy API - Secure Proxy System for RouterOS v7+ (PRODUCTION)
 
-## 📋 Visão Geral
+## 📋 Overview
 
-API proxy de alta performance desenvolvida em Node.js para comunicação segura com dispositivos MikroTik RouterOS v7+ através da REST API. Sistema completamente otimizado para produção com autenticação baseada em sessão de usuário, cache inteligente, rate limiting avançado e monitoramento em tempo real.
+High-performance proxy API developed in Node.js for secure communication with MikroTik RouterOS v7+ devices through REST API. System completely optimized for production with user session-based authentication, intelligent caching, advanced rate limiting, and real-time monitoring.
 
-**🚀 Estado Atual: PRONTO PARA PRODUÇÃO**
+**🚀 Current Status: PRODUCTION READY**
 
-## 🎯 Objetivo do Sistema
+## 🎯 System Objectives
 
-### Propósito Principal
-- **Proxy Seguro de Produção**: Intermediar comunicações de alta performance entre frontend e dispositivos MikroTik
-- **Autenticação por Ownership**: Sistema baseado em sessão do usuário com verificação de propriedade
-- **Cache Inteligente**: Cache em memória para usuários, MikroTiks e dispositivos offline
-- **Rate Limiting Avançado**: Controle por usuário (100 req/min) com sliding window otimizado
-- **Monitoramento Completo**: Dashboard em tempo real com métricas detalhadas
+### Primary Purpose
+- **Secure Production Proxy**: High-performance intermediary between frontend and MikroTik devices
+- **Authentication by Ownership**: Session-based system with user ownership verification
+- **Intelligent Cache**: In-memory cache for users, MikroTiks and offline devices
+- **Advanced Rate Limiting**: Per-user control (100 req/min) with optimized sliding window
+- **Complete Monitoring**: Real-time dashboard with detailed metrics
 
-### Benefícios de Produção
-- **Segurança Máxima**: Tokens MikroTik nunca expostos no frontend
-- **Performance Otimizada**: Cache 5min TTL + logs assíncronos + headers de cache
-- **Escalabilidade**: PM2 cluster mode + otimizações de memória
-- **Observabilidade**: Métricas em tempo real + dashboard + benchmarking
-- **Confiabilidade**: Graceful shutdown + error handling robusto + cache offline 30s
+### Production Benefits
+- **Maximum Security**: MikroTik tokens never exposed in frontend
+- **Optimized Performance**: 5min TTL cache + async logs + cache headers
+- **Scalability**: PM2 cluster mode + memory optimizations
+- **Observability**: Real-time metrics + dashboard + benchmarking
+- **Reliability**: Graceful shutdown + robust error handling + 30s offline cache
 
-## 🏗️ Arquitetura do Sistema
+## 🏗️ System Architecture
 
-### Stack Tecnológico de Produção
+### Production Technology Stack
 ```javascript
-- Node.js + Express.js (Server Framework Otimizado)
-- Axios (HTTP Client com timeout otimizado)
+- Node.js + Express.js (Optimized Server Framework)
+- Axios (HTTP Client with optimized timeout)
 - Supabase Client (Database + Auth Integration)
-- Winston (Logging System com rotação)
-- Express Rate Limit (Rate Limiting avançado)
+- Winston (Logging System with rotation)
+- Express Rate Limit (Advanced rate limiting)
 - Helmet (Security Headers)
 - CORS (Cross-Origin Requests)
 - Compression (Gzip Response)
 - PM2 (Process Manager Cluster)
 ```
 
-### Estrutura Otimizada
+### Optimized Structure
 ```
 mikrotik-proxy-api/
-├── server.js                    # Servidor principal Express
-├── production.js                # Script de produção otimizado
-├── ecosystem.config.js          # Configuração PM2 Cluster
-├── benchmark.js                 # Sistema de benchmark
+├── server.js                    # Main Express server
+├── production.js                # Optimized production script
+├── ecosystem.config.js          # PM2 Cluster configuration
+├── benchmark.js                 # Benchmark system
 ├── middleware/
-│   ├── secureAuth.js           # Autenticação segura por ownership
-│   └── metrics.js              # Coleta de métricas em tempo real
+│   ├── secureAuth.js           # Secure authentication by ownership
+│   └── metrics.js              # Real-time metrics collection
 ├── services/
-│   ├── mikrotikService.js      # Comunicação RouterOS + cache offline
-│   └── supabaseService.js      # Integração otimizada database
+│   ├── mikrotikService.js      # RouterOS communication + offline cache
+│   ├── supabaseService.js      # Optimized database integration
+│   └── templatesService.js     # Template management system
 ├── routes/
-│   ├── secureMikrotik.js       # Rotas principais (substituiu antiga)
-│   ├── metrics.js              # Endpoints de monitoramento
+│   ├── secureMikrotik.js       # Main routes (replaced old one)
+│   ├── publicMikrotik.js       # Public routes for payments
+│   ├── metrics.js              # Monitoring endpoints
 │   └── health.js               # Health checks
+├── templates/                   # Template directory
+│   ├── template1/              # Basic hotspot template
+│   ├── template2/              # Advanced captive portal
+│   └── template3/              # Custom templates
 ├── public/
-│   └── dashboard.html          # Dashboard de monitoramento
+│   └── dashboard.html          # Monitoring dashboard
 ├── utils/
-│   └── logger.js               # Sistema de logs estruturado
-└── logs/                       # Diretório de logs PM2
+│   └── logger.js               # Structured logging system
+└── logs/                       # PM2 logs directory
 ```
 
-## 🔐 Sistema de Autenticação Seguro (NOVO)
+## 🔐 Secure Authentication System (NEW)
 
-### Autenticação por Ownership com Cache
+### Ownership Authentication with Cache
 ```javascript
-// Middleware de autenticação segura otimizado
+// Optimized secure authentication middleware
 async function authenticateByUserSession(req, res, next) {
   const userSessionToken = authHeader.substring(7);
   const tokenHash = userSessionToken.substring(0, 16);
   
-  // Verificar cache primeiro (5min TTL)
+  // Check cache first (5min TTL)
   let user = null;
   const cachedUser = userCache.get(tokenHash);
   
   if (cachedUser && (Date.now() - cachedUser.timestamp) < CACHE_TTL) {
     user = cachedUser.user; // Cache hit!
   } else {
-    // Verificar sessão no Supabase apenas se cache miss
+    // Verify session in Supabase only on cache miss
     const { data: { user: authUser } } = await supabase.auth.getUser(userSessionToken);
     user = authUser;
     
-    // Cache do usuário
+    // Cache user
     userCache.set(tokenHash, { user, timestamp: Date.now() });
   }
 
-  // Verificar ownership do MikroTik (também com cache)
+  // Verify MikroTik ownership (also with cache)
   const mikrotikCacheKey = `${mikrotikId}-${user.id}`;
   const cachedMikrotik = mikrotikCache.get(mikrotikCacheKey);
   
   if (cachedMikrotik && (Date.now() - cachedMikrotik.timestamp) < CACHE_TTL) {
     req.mikrotik = cachedMikrotik.mikrotik; // Cache hit!
   } else {
-    // Buscar e verificar ownership
+    // Fetch and verify ownership
     const mikrotik = await supabaseService.getMikrotikCredentials(mikrotikId);
     if (mikrotik.user_id !== user.id) {
       return res.status(403).json({ error: 'Unauthorized access' });
     }
     
-    // Cache do MikroTik
+    // Cache MikroTik
     mikrotikCache.set(mikrotikCacheKey, { mikrotik, timestamp: Date.now() });
     req.mikrotik = mikrotik;
   }
 }
 ```
 
-### Fluxo de Autenticação Otimizado
-1. **Frontend** envia session token do usuário (não token do MikroTik)
-2. **Cache Hit**: Verificação instantânea se usuário/MikroTik em cache (5min TTL)
-3. **Cache Miss**: Validação no Supabase + cache do resultado
-4. **Ownership**: Verificação automática se usuário possui o MikroTik
-5. **Security**: Token do MikroTik nunca sai do servidor
+### Optimized Authentication Flow
+1. **Frontend** sends user session token (not MikroTik token)
+2. **Cache Hit**: Instant verification if user/MikroTik in cache (5min TTL)
+3. **Cache Miss**: Supabase validation + result caching
+4. **Ownership**: Automatic verification if user owns the MikroTik
+5. **Security**: MikroTik token never leaves the server
 
-### 🔒 Comparação de Segurança
+### 🔒 Security Comparison
 
-| ❌ **Sistema Antigo** | ✅ **Sistema Atual** |
+| ❌ **Old System** | ✅ **Current System** |
 |---------------------|---------------------|
-| Token MikroTik no frontend | Session token do usuário |
-| Token visível em DevTools | Token nunca exposto |
-| Qualquer um com token acessa | Verificação de ownership |
-| Sem cache (lento) | Cache 5min (rápido) |
-| Rate limit por dispositivo | Rate limit por usuário |
+| MikroTik token in frontend | User session token |
+| Token visible in DevTools | Token never exposed |
+| Anyone with token can access | Ownership verification |
+| No cache (slow) | 5min cache (fast) |
+| Rate limit per device | Rate limit per user |
 
-## 🚦 Rate Limiting Avançado (OTIMIZADO)
+## 🚦 Advanced Rate Limiting (OPTIMIZED)
 
-### Rate Limiting por Usuário com Sliding Window
+### Per-User Rate Limiting with Sliding Window
 ```javascript
-// Rate limiting otimizado para produção
-const userRateLimit = rateLimitByUser(100, 60000); // 100 req/min por usuário
+// Optimized rate limiting for production
+const userRateLimit = rateLimitByUser(100, 60000); // 100 req/min per user
 
 function rateLimitByUser(maxRequests = 100, windowMs = 60000) {
   return (req, res, next) => {
@@ -140,17 +146,17 @@ function rateLimitByUser(maxRequests = 100, windowMs = 60000) {
     
     const userLimit = userRateLimits.get(userId);
     
-    // Limpeza otimizada: só remove antigas se passou 10s desde última limpeza
+    // Optimized cleanup: only remove old ones if 10s passed since last cleanup
     if (now - userLimit.lastCleanup > 10000) {
       userLimit.requests = userLimit.requests.filter(time => time > (now - windowMs));
       userLimit.lastCleanup = now;
     }
     
-    // Verificar limite com sliding window
+    // Check limit with sliding window
     const recentRequests = userLimit.requests.filter(time => time > (now - windowMs));
     
     if (recentRequests.length >= maxRequests) {
-      // Headers informativos para cliente
+      // Informative headers for client
       res.set({
         'X-RateLimit-Limit': maxRequests,
         'X-RateLimit-Remaining': 0,
@@ -159,14 +165,14 @@ function rateLimitByUser(maxRequests = 100, windowMs = 60000) {
       });
       
       return res.status(429).json({
-        error: `Muitas requisições. Máximo ${maxRequests} por minuto por usuário.`,
+        error: `Too many requests. Maximum ${maxRequests} per minute per user.`,
         code: 'USER_RATE_LIMIT_EXCEEDED'
       });
     }
     
     userLimit.requests.push(now);
     
-    // Headers de sucesso
+    // Success headers
     res.set({
       'X-RateLimit-Limit': maxRequests,
       'X-RateLimit-Remaining': Math.max(0, maxRequests - recentRequests.length - 1)
@@ -177,34 +183,34 @@ function rateLimitByUser(maxRequests = 100, windowMs = 60000) {
 }
 ```
 
-### Configuração de Produção
+### Production Configuration
 ```bash
-# Rate Limiting otimizado (.env)
-GLOBAL_RATE_LIMIT_MAX_REQUESTS=200    # Por IP (global)
-USER_RATE_LIMIT_MAX_REQUESTS=100      # Por usuário autenticado
-RATE_LIMIT_WINDOW_MS=60000            # 1 minuto
+# Optimized rate limiting (.env)
+GLOBAL_RATE_LIMIT_MAX_REQUESTS=200    # Per IP (global)
+USER_RATE_LIMIT_MAX_REQUESTS=100      # Per authenticated user
+RATE_LIMIT_WINDOW_MS=60000            # 1 minute
 ```
 
-### Vantagens do Novo Sistema
-- **Por Usuário**: Rate limit baseado em ownership real
-- **Sliding Window**: Mais justo que fixed window
-- **Headers Informativos**: X-RateLimit-* para cliente
-- **Limpeza Otimizada**: Apenas a cada 10s (performance)
-- **Cache Inteligente**: Remove usuários inativos automaticamente
+### New System Advantages
+- **Per User**: Rate limit based on real ownership
+- **Sliding Window**: Fairer than fixed window
+- **Informative Headers**: X-RateLimit-* for client
+- **Optimized Cleanup**: Only every 10s (performance)
+- **Intelligent Cache**: Automatically removes inactive users
 
-## 💾 Sistema de Cache Inteligente (NOVO)
+## 💾 Intelligent Cache System (NEW)
 
-### Cache de Usuários e MikroTiks com TTL
+### Users and MikroTiks Cache with TTL
 ```javascript
-// Cache em memória otimizado
+// Optimized in-memory cache
 const userCache = new Map();
 const mikrotikCache = new Map();
 const offlineDeviceCache = new Map();
 
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutos
-const OFFLINE_CACHE_TTL = 30 * 1000; // 30 segundos
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+const OFFLINE_CACHE_TTL = 30 * 1000; // 30 seconds
 
-// Cache de usuários com verificação de TTL
+// User cache with TTL verification
 function getCachedUser(tokenHash) {
   const cached = userCache.get(tokenHash);
   if (cached && (Date.now() - cached.timestamp) < CACHE_TTL) {
@@ -213,7 +219,7 @@ function getCachedUser(tokenHash) {
   return null;
 }
 
-// Cache de MikroTiks com ownership
+// MikroTik cache with ownership
 function getCachedMikrotik(mikrotikId, userId) {
   const cacheKey = `${mikrotikId}-${userId}`;
   const cached = mikrotikCache.get(cacheKey);
@@ -223,7 +229,7 @@ function getCachedMikrotik(mikrotikId, userId) {
   return null;
 }
 
-// Cache de dispositivos offline
+// Offline device cache
 function cacheOfflineDevice(mikrotikId, error) {
   offlineDeviceCache.set(mikrotikId, {
     error,
@@ -240,27 +246,27 @@ function isDeviceCachedAsOffline(mikrotikId) {
 }
 ```
 
-### Limpeza Automática de Cache
+### Automatic Cache Cleanup
 ```javascript
-// Limpeza periódica do cache (a cada 10 minutos)
+// Periodic cache cleanup (every 10 minutes)
 setInterval(() => {
   const now = Date.now();
   
-  // Limpar cache de usuários expirados
+  // Clean expired user cache
   for (const [key, value] of userCache.entries()) {
     if (now - value.timestamp > CACHE_TTL) {
       userCache.delete(key);
     }
   }
   
-  // Limpar cache de MikroTiks expirados
+  // Clean expired MikroTik cache
   for (const [key, value] of mikrotikCache.entries()) {
     if (now - value.timestamp > CACHE_TTL) {
       mikrotikCache.delete(key);
     }
   }
   
-  // Limpar cache de dispositivos offline
+  // Clean offline device cache
   for (const [key, value] of offlineDeviceCache.entries()) {
     if (now - value.timestamp > OFFLINE_CACHE_TTL) {
       offlineDeviceCache.delete(key);
@@ -269,21 +275,21 @@ setInterval(() => {
 }, 10 * 60 * 1000);
 ```
 
-## 🔌 Comunicação com RouterOS
+## 🔌 RouterOS Communication
 
-### MikroTik Service com Cache Offline
+### MikroTik Service with Offline Cache
 ```javascript
 class MikrotikService {
   async makeRequest(mikrotikConfig, endpoint, method = 'GET', data = null) {
     const { ip, username, password, id } = mikrotikConfig;
     
-    // Verificar se dispositivo está em cache como offline
+    // Check if device is cached as offline
     const offlineError = isDeviceCachedAsOffline(id);
     if (offlineError) {
-      return offlineError; // Retornar erro cacheado
+      return offlineError; // Return cached error
     }
     
-    // API REST sempre usa porta 80 (HTTP)
+    // REST API always uses port 80 (HTTP)
     const baseURL = `http://${ip}:80`;
     const fullURL = `${baseURL}/rest${endpoint}`;
 
@@ -304,7 +310,7 @@ class MikrotikService {
       const response = await axios(config);
       return response;
     } catch (error) {
-      // Cache dispositivos offline por 30 segundos
+      // Cache offline devices for 30 seconds
       if (error.code === 'ECONNREFUSED' || error.code === 'ETIMEDOUT') {
         const offlineError = {
           success: false,
@@ -320,30 +326,30 @@ class MikrotikService {
 }
 ```
 
-### Endpoints Disponíveis
+### Available Endpoints
 ```
-GET    /api/mikrotik/:id/test              # Testar conexão
-GET    /api/mikrotik/:id/interfaces        # Listar interfaces
-GET    /api/mikrotik/:id/hotspot/users     # Usuários hotspot
-POST   /api/mikrotik/:id/hotspot/users     # Criar usuário
-GET    /api/mikrotik/:id/hotspot/active    # Usuários ativos
-GET    /api/mikrotik/:id/system/resource   # Recursos sistema
-GET    /api/mikrotik/:id/system/identity   # Identidade
-POST   /api/mikrotik/:id/rest/*            # Endpoint genérico
+GET    /api/mikrotik/:id/test              # Test connection
+GET    /api/mikrotik/:id/interfaces        # List interfaces
+GET    /api/mikrotik/:id/hotspot/users     # Hotspot users
+POST   /api/mikrotik/:id/hotspot/users     # Create user
+GET    /api/mikrotik/:id/hotspot/active    # Active users
+GET    /api/mikrotik/:id/system/resource   # System resources
+GET    /api/mikrotik/:id/system/identity   # Identity
+POST   /api/mikrotik/:id/rest/*            # Generic endpoint
 ```
 
-## 🔍 Detecção Inteligente de Erros
+## 🔍 Intelligent Error Detection
 
-### Categorização Avançada
+### Advanced Categorization
 ```javascript
-// Análise detalhada do tipo de erro
+// Detailed error type analysis
 if (error.code === 'ECONNREFUSED') {
   return {
     success: false,
     error: 'MikroTik offline',
     code: 'DEVICE_OFFLINE',
     responseTime,
-    details: 'Dispositivo não está respondendo na porta 80'
+    details: 'Device is not responding on port 80'
   };
 }
 
@@ -351,31 +357,31 @@ if (error.response?.status === 401) {
   return {
     success: false,
     status: 401,
-    error: 'Usuário ou senha incorretos',
+    error: 'Incorrect username or password',
     code: 'INVALID_CREDENTIALS',
     responseTime,
-    details: 'Verificar username e password do MikroTik'
+    details: 'Check MikroTik username and password'
   };
 }
 ```
 
-### Códigos de Erro Específicos
+### Specific Error Codes
 ```javascript
-// Tipos de erro retornados
-DEVICE_OFFLINE       // Dispositivo não responde
-INVALID_CREDENTIALS  // Username/password incorretos
-ACCESS_DENIED        // Sem permissões suficientes
-ENDPOINT_NOT_FOUND   // API REST não habilitada
-MIKROTIK_ERROR       // Erro interno RouterOS
-MIKROTIK_API_ERROR   // Erro genérico da API
-TEST_CONNECTION_FAILED // Falha no teste de conexão
+// Error types returned
+DEVICE_OFFLINE       // Device not responding
+INVALID_CREDENTIALS  // Incorrect username/password
+ACCESS_DENIED        // Insufficient permissions
+ENDPOINT_NOT_FOUND   // REST API not enabled
+MIKROTIK_ERROR       // Internal RouterOS error
+MIKROTIK_API_ERROR   // Generic API error
+TEST_CONNECTION_FAILED // Connection test failure
 ```
 
-### Teste Rápido de Conectividade
+### Quick Connectivity Test
 ```javascript
 async quickConnectivityTest(mikrotikConfig) {
   try {
-    // Teste rápido com timeout de 3 segundos
+    // Quick test with 3 second timeout
     const response = await axios.get(`http://${ip}:80/rest/system/clock`, {
       timeout: 3000,
       auth: { username, password },
@@ -385,7 +391,7 @@ async quickConnectivityTest(mikrotikConfig) {
     if (response.status === 401) {
       return {
         success: false,
-        error: 'Usuário ou senha incorretos',
+        error: 'Incorrect username or password',
         code: 'INVALID_CREDENTIALS'
       };
     }
@@ -401,9 +407,463 @@ async quickConnectivityTest(mikrotikConfig) {
 }
 ```
 
-## 📊 Dashboard de Monitoramento em Tempo Real (NOVO)
+## 🔓 Public Routes for Payment Integration (NEW!)
 
-### Interface Web Completa
+### Passwordless Voucher Verification System
+
+**🎯 Objective**: Allow payment systems to verify vouchers/hotspot users without user authentication, essential for captive portals and voucher validation.
+
+### Endpoint: Verify Voucher
+```bash
+POST /api/mikrotik/public/check-voucher/:mikrotikId
+Content-Type: application/json
+
+{
+  "username": "12345"
+}
+```
+
+**Success Response (Voucher Exists)**:
+```json
+{
+  "success": true,
+  "exists": true,
+  "used": false,
+  "user": {
+    "name": "12345",
+    "profile": "default",
+    "comment": "C:16/07/2025 V:10 D:1d",
+    "uptime": "00:00:00",
+    "disabled": false
+  },
+  "responseTime": 1168
+}
+```
+
+**Error Response (Voucher Not Found)**:
+```json
+{
+  "success": false,
+  "exists": false,
+  "message": "Voucher not found",
+  "responseTime": 1168
+}
+```
+
+### Endpoint: Create Hotspot User
+```bash
+POST /api/mikrotik/public/create-hotspot-user/:mikrotikId
+Content-Type: application/json
+
+{
+  "name": "user123",
+  "password": "user123",
+  "profile": "default",
+  "comment": "C:16/07/2025 V:10 D:1d"
+}
+```
+
+**Response**:
+```json
+{
+  "success": true,
+  "message": "Hotspot user created successfully",
+  "user": {
+    "name": "user123",
+    "password": "user123",
+    "profile": "default",
+    "comment": "C:16/07/2025 V:10 D:1d"
+  },
+  "responseTime": 1242
+}
+```
+
+### Endpoint: Create IP Binding
+```bash
+POST /api/mikrotik/public/create-ip-binding/:mikrotikId
+Content-Type: application/json
+
+{
+  "address": "192.168.1.100",
+  "mac_address": "AA:BB:CC:DD:EE:FF",
+  "comment": "C:16/07/2025 V:10 PAY123"
+}
+```
+
+**Response**:
+```json
+{
+  "success": true,
+  "message": "IP binding created successfully",
+  "binding": {
+    "address": "192.168.1.100",
+    "mac-address": "AA:BB:CC:DD:EE:FF",
+    "disabled": "false",
+    "comment": "C:16/07/2025 V:10 PAY123"
+  },
+  "responseTime": 1166
+}
+```
+
+### 🔐 Public Routes Security
+
+**Rate Limiting by IP**: 50 req/min per IP (more restrictive)
+```javascript
+const publicRateLimit = rateLimitByIP(50, 60000); // 50 req/min per IP
+```
+
+**Implemented Protections**:
+- ✅ IP-specific rate limiting for public routes
+- ✅ Required field validation
+- ✅ Active MikroTik verification in Supabase
+- ✅ Configured timeout (15-20s)
+- ✅ Detailed logs of all operations
+- ✅ Informative headers (X-RateLimit-*)
+
+### 📝 Abbreviated Comment Format (NEW!)
+
+**Previous pattern**: `"Created on: 16/07/2025, Duration: 1 day, Value: R$ 10,00"`
+
+**🆕 New abbreviated pattern**: `"C:16/07/2025 V:10 D:1d"`
+
+**Meaning**:
+- `C:` = Created
+- `V:` = Value 
+- `D:` = Duration
+
+**Advantages**:
+- ✅ **90% fewer characters** (space economy)
+- ✅ **Faster parsing** in code
+- ✅ **Better for export** CSV/Excel
+- ✅ **MikroTik compatible** (character limits)
+
+## 🌐 Captive Portal Authentication Flow (NEW!)
+
+### Complete Captive Portal Workflow
+
+The system supports full captive portal authentication with automatic password verification and user redirection:
+
+### 1. Captive Portal Detection
+When a device connects to WiFi and tries to access any website, MikroTik automatically redirects to captive portal:
+
+```
+User Device → Tries to access google.com
+     ↓
+MikroTik Hotspot → Redirects to captive portal
+     ↓
+Captive Portal Page → Shows login form
+```
+
+### 2. Password Verification Flow
+```bash
+# User enters password in captive portal
+User Input: "voucher123"
+     ↓
+# Frontend calls verification API
+POST /api/mikrotik/public/check-voucher/:mikrotikId
+{
+  "username": "voucher123"
+}
+     ↓
+# API returns verification result
+{
+  "success": true,
+  "exists": true,
+  "used": false,
+  "user": {
+    "name": "voucher123",
+    "profile": "default",
+    "uptime": "00:00:00"
+  }
+}
+```
+
+### 3. Automatic MikroTik Authentication
+If password exists and is valid, system authenticates user directly in MikroTik:
+
+```javascript
+// Frontend authentication flow
+if (verificationResponse.success && verificationResponse.exists) {
+  // Redirect to MikroTik authentication URL
+  const authUrl = `http://${mikrotikIP}/login?username=${username}&password=${username}`;
+  window.location.href = authUrl;
+} else {
+  // Show error message
+  showError("Invalid voucher or already used");
+}
+```
+
+### 4. MikroTik Login Parameters
+```bash
+# MikroTik Authentication using captive portal forms
+# The IP and authentication URLs are provided by the MikroTik captive portal itself
+# No need to hardcode IPs - use MikroTik's $(link-login-only) and $(link-orig) variables
+
+# Authentication process:
+- username: The voucher/username  
+- password: The voucher/password (usually same as username)
+- dst: Destination URL from $(link-orig) to redirect after successful login
+```
+
+### 5. Success Redirection
+After successful authentication:
+```
+User authenticated in MikroTik
+     ↓
+MikroTik grants internet access
+     ↓
+User redirected to destination URL (google.com)
+     ↓
+User can now browse normally
+```
+
+### Template Variables for Captive Portal
+
+Templates now support complete captive portal configuration:
+
+```javascript
+// Template variables for captive portal
+const CONFIG = {
+  MIKROTIK_ID: '{{MIKROTIK_ID}}',
+  API_URL: '{{API_URL}}',                     // https://api.mikropix.online
+  MIKROTIK_PROXY_URL: '{{MIKROTIK_PROXY_URL}}', // http://router.mikropix.online:3001
+  HOTSPOT_NAME: '{{HOTSPOT_NAME}}',           // WiFi network name
+  SUCCESS_REDIRECT: '{{SUCCESS_REDIRECT}}'    // Redirect URL after login
+};
+
+// Captive portal authentication function
+async function authenticateVoucher(password) {
+  try {
+    // 1. Verify voucher exists
+    const response = await fetch(`${CONFIG.MIKROTIK_PROXY_URL}/api/mikrotik/public/check-voucher/${CONFIG.MIKROTIK_ID}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: password })
+    });
+    
+    const result = await response.json();
+    
+    // 2. If voucher is valid, authenticate in MikroTik
+    if (result.success && result.exists && !result.used) {
+      // Use MikroTik's own login mechanism (provided by captive portal)
+      authenticateInMikroTik(password, password);
+    } else {
+      showError(result.used ? 'Voucher already used' : 'Invalid voucher');
+    }
+  } catch (error) {
+    showError('Connection error. Please try again.');
+  }
+}
+```
+
+## 🎨 Template Management System (UPDATED)
+
+### Template Variable Substitution
+
+Templates now support complete URL configuration with automatic variable replacement:
+
+```javascript
+// Template service with updated URL substitution
+class TemplatesService {
+  async substituteVariables(content, mikrotikData) {
+    const variables = {
+      MIKROTIK_ID: mikrotikData.id,
+      API_URL: 'https://api.mikropix.online',
+      MIKROTIK_PROXY_URL: 'http://router.mikropix.online:3001',
+      BACKEND_URL: 'https://api.mikropix.online',
+      HOTSPOT_NAME: mikrotikData.nome || 'MikroPix WiFi',
+      SUCCESS_REDIRECT: 'http://google.com'
+    };
+
+    let result = content;
+    for (const [key, value] of Object.entries(variables)) {
+      result = result.replace(new RegExp(`{{${key}}}`, 'g'), value);
+    }
+    return result;
+  }
+}
+```
+
+### Updated Template Structure
+```
+templates/
+├── template1/                 # Basic hotspot
+│   ├── index.html            # Main captive portal page
+│   ├── script.js             # Voucher verification logic
+│   └── style.css             # Styling
+├── template2/                 # Advanced captive portal
+│   ├── index.html            # Enhanced UI with branding
+│   ├── script.js             # Complete auth flow
+│   ├── style.css             # Professional styling
+│   └── assets/               # Images and resources
+└── template3/                 # Custom templates
+    ├── index.html
+    ├── script.js
+    └── style.css
+```
+
+### Template2 Script.js (Updated)
+```javascript
+// Complete captive portal configuration
+const CONFIG = {
+  MIKROTIK_ID: '{{MIKROTIK_ID}}',
+  API_URL: '{{API_URL}}',
+  MIKROTIK_PROXY_URL: '{{MIKROTIK_PROXY_URL}}',
+  HOTSPOT_NAME: '{{HOTSPOT_NAME}}',
+  SUCCESS_REDIRECT: '{{SUCCESS_REDIRECT}}'
+};
+
+// Enhanced voucher authentication
+async function authenticateUser() {
+  const password = document.getElementById('password').value;
+  
+  if (!password) {
+    showMessage('Please enter your voucher', 'error');
+    return;
+  }
+
+  try {
+    showMessage('Verifying voucher...', 'info');
+    
+    // Verify voucher with proxy API
+    const response = await fetch(`${CONFIG.MIKROTIK_PROXY_URL}/api/mikrotik/public/check-voucher/${CONFIG.MIKROTIK_ID}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: password })
+    });
+
+    const result = await response.json();
+
+    if (result.success && result.exists) {
+      if (result.used) {
+        showMessage('This voucher has already been used', 'error');
+        return;
+      }
+
+      // Voucher is valid - authenticate in MikroTik
+      showMessage('Voucher valid! Connecting...', 'success');
+      
+      setTimeout(() => {
+        // Use MikroTik's own authentication mechanism
+        authenticateInMikroTik(password, password, CONFIG.SUCCESS_REDIRECT);
+      }, 1500);
+      
+    } else {
+      showMessage('Invalid voucher. Please check and try again.', 'error');
+    }
+  } catch (error) {
+    console.error('Authentication error:', error);
+    showMessage('Connection error. Please try again.', 'error');
+  }
+}
+
+// Message display function
+function showMessage(message, type) {
+  const messageDiv = document.getElementById('message');
+  messageDiv.textContent = message;
+  messageDiv.className = `message ${type}`;
+  messageDiv.style.display = 'block';
+}
+
+// Form submission
+document.addEventListener('DOMContentLoaded', function() {
+  const form = document.getElementById('loginForm');
+  const passwordInput = document.getElementById('password');
+  
+  form.addEventListener('submit', function(e) {
+    e.preventDefault();
+    authenticateUser();
+  });
+  
+  passwordInput.addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+      authenticateUser();
+    }
+  });
+});
+```
+
+### Template Endpoint (Updated)
+```bash
+# Apply template to MikroTik
+POST /api/mikrotik/templates/:templateId/apply/:mikrotikId
+
+# Serve template files with variable substitution
+GET /api/mikrotik/templates/:templateId/files/:mikrotikId/:filename
+```
+
+## 🔄 Routes and Endpoints
+
+### Route Structure
+```javascript
+// Health check
+GET  /health          # Basic status
+GET  /health/detailed  # Detailed status with Supabase
+
+// MikroTik Management (WITH AUTHENTICATION)
+GET  /api/mikrotik/list                    # List MikroTiks
+GET  /api/mikrotik/:id/test               # Test connection
+POST /api/mikrotik/:id/rest/*             # Generic proxy
+
+// Specific RouterOS endpoints (WITH AUTHENTICATION)
+GET  /api/mikrotik/:id/interfaces         # Interfaces
+GET  /api/mikrotik/:id/system/resource    # System resources
+GET  /api/mikrotik/:id/hotspot/users      # Hotspot users
+POST /api/mikrotik/:id/hotspot/users      # Create user
+GET  /api/mikrotik/:id/hotspot/active     # Active users
+
+// 🆕 PUBLIC ROUTES (NO AUTHENTICATION) - NEW!
+POST /api/mikrotik/public/check-voucher/:mikrotikId           # Verify voucher
+POST /api/mikrotik/public/create-hotspot-user/:mikrotikId     # Create hotspot user
+POST /api/mikrotik/public/create-ip-binding/:mikrotikId       # Create IP binding
+
+// Templates (NO AUTHENTICATION)
+GET  /api/mikrotik/templates/:templateId/files/:mikrotikId/:filename  # Serve files
+POST /api/mikrotik/templates/:templateId/apply/:mikrotikId            # Apply template
+```
+
+### Middleware Stack
+```javascript
+app.use(helmet());              // Security headers
+app.use(cors());               // CORS enabled
+app.use(express.json());       // Parse JSON
+app.use(globalRateLimit);      // Global rate limit
+app.use('/api/mikrotik', 
+  mikrotikRateLimit,           // Specific rate limit
+  authenticateByBearerToken,   // Authentication
+  mikrotikRoutes              // MikroTik routes
+);
+```
+
+## 🔗 Backend Payment Integration
+
+### Complete Integration with MikroPix Backend
+
+**Backend updated** to use new proxy APIs:
+
+```javascript
+// Voucher verification (paymentController.js)
+const userResponse = await axios.post(
+  `${mikrotikProxyUrl}/api/mikrotik/public/check-voucher/${mikrotik_id}`,
+  { username: username }
+);
+
+// User creation (mikrotikUserService.js)
+const response = await axios.post(
+  `${mikrotikProxyUrl}/api/mikrotik/public/create-hotspot-user/${mikrotikId}`,
+  { name, password, profile, comment: "C:16/07/2025 V:10 D:1d" }
+);
+
+// IP binding creation (mikrotikUserService.js)
+const response = await axios.post(
+  `${mikrotikProxyUrl}/api/mikrotik/public/create-ip-binding/${mikrotikId}`,
+  { address, mac_address, comment: "C:16/07/2025 V:10 PAY123" }
+);
+```
+
+## 📊 Real-time Monitoring Dashboard (NEW)
+
+### Complete Web Interface
 ```html
 <!-- public/dashboard.html -->
 <!DOCTYPE html>
@@ -420,16 +880,16 @@ async quickConnectivityTest(mikrotikConfig) {
     </style>
 </head>
 <body>
-    <h1>🛡️ MikroTik Proxy API - Monitoramento</h1>
+    <h1>🛡️ MikroTik Proxy API - Monitoring</h1>
     
     <div class="metrics-grid">
         <div class="metric-card">
-            <h3>📈 Requisições Totais</h3>
+            <h3>📈 Total Requests</h3>
             <div class="metric-value" id="totalRequests">0</div>
         </div>
         
         <div class="metric-card">
-            <h3>✅ Taxa de Sucesso</h3>
+            <h3>✅ Success Rate</h3>
             <div class="metric-value" id="successRate">0%</div>
         </div>
         
@@ -439,7 +899,7 @@ async quickConnectivityTest(mikrotikConfig) {
         </div>
         
         <div class="metric-card">
-            <h3>⏱️ Tempo Médio</h3>
+            <h3>⏱️ Avg Time</h3>
             <div class="metric-value" id="avgResponseTime">0ms</div>
         </div>
     </div>
@@ -447,7 +907,7 @@ async quickConnectivityTest(mikrotikConfig) {
     <canvas id="requestsChart" width="800" height="400"></canvas>
     
     <script>
-        // Auto-refresh a cada 5 segundos
+        // Auto-refresh every 5 seconds
         setInterval(updateDashboard, 5000);
         updateDashboard();
         
@@ -463,7 +923,7 @@ async quickConnectivityTest(mikrotikConfig) {
                 document.getElementById('requestsPerMinute').textContent = data.requestsPerMinute;
                 document.getElementById('avgResponseTime').textContent = `${data.avgResponseTime}ms`;
             } catch (error) {
-                console.error('Erro ao atualizar dashboard:', error);
+                console.error('Error updating dashboard:', error);
             }
         }
     </script>
@@ -471,7 +931,7 @@ async quickConnectivityTest(mikrotikConfig) {
 </html>
 ```
 
-### Middleware de Métricas
+### Metrics Middleware
 ```javascript
 // middleware/metrics.js
 const metrics = {
@@ -486,7 +946,7 @@ const metrics = {
 function collectMetrics(req, res, next) {
   const startTime = Date.now();
   
-  // Override da função end para capturar métricas
+  // Override end function to capture metrics
   const originalEnd = res.end;
   res.end = function(...args) {
     const responseTime = Date.now() - startTime;
@@ -503,7 +963,7 @@ function collectMetrics(req, res, next) {
     
     metrics.responseTimes.push(responseTime);
     
-    // Manter apenas últimos 1000 registros
+    // Keep only last 1000 records
     if (metrics.requests.length > 1000) {
       metrics.requests = metrics.requests.slice(-1000);
     }
@@ -520,14 +980,14 @@ function collectMetrics(req, res, next) {
 module.exports = { collectMetrics, metrics };
 ```
 
-## 📊 Sistema de Logs Assíncronos (OTIMIZADO)
+## 📊 Asynchronous Logging System (OPTIMIZED)
 
-### Configuração Winston com Rotação
+### Winston Configuration with Rotation
 ```javascript
 const winston = require('winston');
 require('winston-daily-rotate-file');
 
-// Transport para logs com rotação diária
+// Transport for logs with daily rotation
 const dailyRotateFileTransport = new winston.transports.DailyRotateFile({
   filename: 'logs/mikrotik-proxy-%DATE%.log',
   datePattern: 'YYYY-MM-DD',
@@ -560,13 +1020,13 @@ const logger = winston.createLogger({
     })
   ],
   
-  // Logs assíncronos para performance
+  // Async logs for performance
   exitOnError: false,
   handleExceptions: true,
   handleRejections: true
 });
 
-// Performance: buffer de logs
+// Performance: log buffer
 logger.configure({
   transports: logger.transports.map(transport => {
     if (transport.name === 'file') {
@@ -580,9 +1040,9 @@ logger.configure({
 });
 ```
 
-### Logs Estruturados
+### Structured Logs
 ```javascript
-// Log de requisição
+// Request log
 logger.info('MikroTik API Request', {
   mikrotik: ip,
   method,
@@ -590,7 +1050,7 @@ logger.info('MikroTik API Request', {
   hasData: !!data
 });
 
-// Log de resposta
+// Response log
 logger.info('MikroTik API Response', {
   mikrotik: ip,
   method,
@@ -599,17 +1059,17 @@ logger.info('MikroTik API Response', {
   responseTime: `${responseTime}ms`
 });
 
-// Log de erro
-logger.error('MikroTik offline (conexão recusada)', {
+// Error log
+logger.error('MikroTik offline (connection refused)', {
   ip: `${ip}:80`,
   endpoint,
   responseTime: `${responseTime}ms`
 });
 ```
 
-## 🗄️ Integração com Supabase
+## 🗄️ Supabase Integration
 
-### Schema da Tabela mikrotiks
+### mikrotiks Table Schema
 ```sql
 CREATE TABLE mikrotiks (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -625,9 +1085,9 @@ CREATE TABLE mikrotiks (
 );
 ```
 
-### Métodos do SupabaseService
+### SupabaseService Methods
 ```javascript
-// Obter MikroTik por token
+// Get MikroTik by token
 async getMikrotikByToken(token) {
   const { data, error } = await this.supabase
     .from('mikrotiks')
@@ -642,9 +1102,9 @@ async getMikrotikByToken(token) {
   return data;
 }
 
-// Log opcional de acesso à API
+// Optional API access logging
 async logApiAccess(mikrotikId, endpoint, method, success, responseTime) {
-  // Log não crítico - falha silenciosa se tabela não existir
+  // Non-critical log - silent failure if table doesn't exist
   try {
     await this.supabase
       .from('mikrotik_api_logs')
@@ -654,216 +1114,19 @@ async logApiAccess(mikrotikId, endpoint, method, success, responseTime) {
         accessed_at: new Date().toISOString()
       });
   } catch (error) {
-    logger.debug('Log de acesso ignorado:', error.message);
+    logger.debug('Access log ignored:', error.message);
   }
 }
 ```
 
-## 🔄 Rotas e Endpoints
+## 🎯 Usage Examples
 
-### Estrutura de Rotas
-```javascript
-// Health check
-GET  /health          # Status básico
-GET  /health/detailed  # Status detalhado com Supabase
-
-// MikroTik Management (COM AUTENTICAÇÃO)
-GET  /api/mikrotik/list                    # Listar MikroTiks
-GET  /api/mikrotik/:id/test               # Testar conexão
-POST /api/mikrotik/:id/rest/*             # Proxy genérico
-
-// Endpoints específicos RouterOS (COM AUTENTICAÇÃO)
-GET  /api/mikrotik/:id/interfaces         # Interfaces
-GET  /api/mikrotik/:id/system/resource    # Recursos sistema
-GET  /api/mikrotik/:id/hotspot/users      # Usuários hotspot
-POST /api/mikrotik/:id/hotspot/users      # Criar usuário
-GET  /api/mikrotik/:id/hotspot/active     # Usuários ativos
-
-// 🆕 ROTAS PÚBLICAS (SEM AUTENTICAÇÃO) - NOVO!
-POST /api/mikrotik/public/check-voucher/:mikrotikId           # Verificar voucher
-POST /api/mikrotik/public/create-hotspot-user/:mikrotikId     # Criar usuário hotspot
-POST /api/mikrotik/public/create-ip-binding/:mikrotikId       # Criar IP binding
-
-// Templates (SEM AUTENTICAÇÃO)
-GET  /api/mikrotik/templates/:templateId/files/:mikrotikId/:filename  # Servir arquivos
-POST /api/mikrotik/templates/:templateId/apply/:mikrotikId            # Aplicar template
-```
-
-### Middleware Stack
-```javascript
-app.use(helmet());              // Headers de segurança
-app.use(cors());               // CORS habilitado
-app.use(express.json());       // Parse JSON
-app.use(globalRateLimit);      // Rate limit global
-app.use('/api/mikrotik', 
-  mikrotikRateLimit,           // Rate limit específico
-  authenticateByBearerToken,   // Autenticação
-  mikrotikRoutes              // Rotas MikroTik
-);
-```
-
-## 🔓 Rotas Públicas para Integração de Pagamentos (NOVO!)
-
-### Sistema de Verificação de Vouchers SEM Autenticação
-
-**🎯 Objetivo**: Permitir que sistemas de pagamento verifiquem vouchers/usuários hotspot sem precisar de autenticação de usuário, essencial para captive portals e validação de vouchers.
-
-### Endpoint: Verificar Voucher
-```bash
-POST /api/mikrotik/public/check-voucher/:mikrotikId
-Content-Type: application/json
-
-{
-  "username": "12345"
-}
-```
-
-**Resposta de Sucesso (Voucher Existe)**:
-```json
-{
-  "success": true,
-  "exists": true,
-  "used": false,
-  "user": {
-    "name": "12345",
-    "profile": "default",
-    "comment": "C:16/07/2025 V:10 D:1d",
-    "uptime": "00:00:00",
-    "disabled": false
-  },
-  "responseTime": 1168
-}
-```
-
-**Resposta de Erro (Voucher Não Existe)**:
-```json
-{
-  "success": false,
-  "exists": false,
-  "message": "Voucher não encontrado",
-  "responseTime": 1168
-}
-```
-
-### Endpoint: Criar Usuário Hotspot
-```bash
-POST /api/mikrotik/public/create-hotspot-user/:mikrotikId
-Content-Type: application/json
-
-{
-  "name": "user123",
-  "password": "user123",
-  "profile": "default",
-  "comment": "C:16/07/2025 V:10 D:1d"
-}
-```
-
-**Resposta**:
-```json
-{
-  "success": true,
-  "message": "Usuário hotspot criado com sucesso",
-  "user": {
-    "name": "user123",
-    "password": "user123",
-    "profile": "default",
-    "comment": "C:16/07/2025 V:10 D:1d"
-  },
-  "responseTime": 1242
-}
-```
-
-### Endpoint: Criar IP Binding
-```bash
-POST /api/mikrotik/public/create-ip-binding/:mikrotikId
-Content-Type: application/json
-
-{
-  "address": "192.168.1.100",
-  "mac_address": "AA:BB:CC:DD:EE:FF",
-  "comment": "C:16/07/2025 V:10 PAY123"
-}
-```
-
-**Resposta**:
-```json
-{
-  "success": true,
-  "message": "IP binding criado com sucesso",
-  "binding": {
-    "address": "192.168.1.100",
-    "mac-address": "AA:BB:CC:DD:EE:FF",
-    "disabled": "false",
-    "comment": "C:16/07/2025 V:10 PAY123"
-  },
-  "responseTime": 1166
-}
-```
-
-### 🔐 Segurança das Rotas Públicas
-
-**Rate Limiting por IP**: 50 req/min por IP (mais restritivo)
-```javascript
-const publicRateLimit = rateLimitByIP(50, 60000); // 50 req/min por IP
-```
-
-**Proteções Implementadas**:
-- ✅ Rate limiting por IP específico para rotas públicas
-- ✅ Validação de campos obrigatórios
-- ✅ Verificação de MikroTik ativo no Supabase
-- ✅ Timeout configurado (15-20s)
-- ✅ Logs detalhados de todas as operações
-- ✅ Headers informativos (X-RateLimit-*)
-
-### 📝 Formato de Comentários Abreviado (NOVO!)
-
-**Padrão anterior**: `"Criado em: 16/07/2025, Duração: 1 dia, Valor: R$ 10,00"`
-
-**🆕 Novo padrão abreviado**: `"C:16/07/2025 V:10 D:1d"`
-
-**Significado**:
-- `C:` = Criado (Created)
-- `V:` = Valor (Value) 
-- `D:` = Duração (Duration)
-
-**Vantagens**:
-- ✅ **90% menos caracteres** (economy de espaço)
-- ✅ **Parsing mais rápido** em código
-- ✅ **Melhor para exportação** CSV/Excel
-- ✅ **Compatível com MikroTik** (limites de caracteres)
-
-### 🔗 Integração com Backend de Pagamentos
-
-**Backend MikroPix atualizado** para usar novas APIs:
-
-```javascript
-// Verificação de voucher (paymentController.js)
-const userResponse = await axios.post(
-  `${mikrotikProxyUrl}/api/mikrotik/public/check-voucher/${mikrotik_id}`,
-  { username: username }
-);
-
-// Criação de usuário (mikrotikUserService.js)
-const response = await axios.post(
-  `${mikrotikProxyUrl}/api/mikrotik/public/create-hotspot-user/${mikrotikId}`,
-  { name, password, profile, comment: "C:16/07/2025 V:10 D:1d" }
-);
-
-// Criação de IP binding (mikrotikUserService.js)
-const response = await axios.post(
-  `${mikrotikProxyUrl}/api/mikrotik/public/create-ip-binding/${mikrotikId}`,
-  { address, mac_address, comment: "C:16/07/2025 V:10 PAY123" }
-);
-```
-
-## 🎯 Exemplos de Uso
-
-### Cliente Frontend (React/TypeScript)
+### Frontend Client (React/TypeScript)
 ```typescript
-// Configuração do cliente
+// Client configuration
 const baseUrl = 'http://router.mikropix.online:3001';
 
-// Fazer requisição autenticada
+// Make authenticated request
 const response = await fetch(`${baseUrl}/api/mikrotik/${mikrotik.id}/test`, {
   headers: {
     'Authorization': `Bearer ${mikrotik.token}`,
@@ -873,7 +1136,7 @@ const response = await fetch(`${baseUrl}/api/mikrotik/${mikrotik.id}/test`, {
 
 const data = await response.json();
 
-// Tratamento de erros específicos
+// Handle specific errors
 if (!data.success) {
   const errorColor = data.code === 'INVALID_CREDENTIALS' ? 'text-yellow-400' :
                     data.code === 'DEVICE_OFFLINE' ? 'text-red-400' :
@@ -883,44 +1146,44 @@ if (!data.success) {
 }
 ```
 
-### Cliente de Teste (Node.js)
+### Test Client (Node.js)
 ```javascript
 const client = new MikrotikProxyClient('http://localhost:3001');
 
-// Testar conexão
+// Test connection
 await client.testMikrotikConnection(mikrotikId, token);
 
-// Obter interfaces
+// Get interfaces
 await client.getInterfaces(mikrotikId, token);
 
-// Criar usuário hotspot
+// Create hotspot user
 await client.createHotspotUser(mikrotikId, {
-  name: 'usuario-teste',
+  name: 'test-user',
   password: '123456',
   profile: 'default'
 });
 ```
 
-## 🚀 Deploy em Produção com PM2 Cluster (NOVO)
+## 🚀 Production Deploy with PM2 Cluster (NEW)
 
-### Configuração PM2 Otimizada
+### Optimized PM2 Configuration
 ```javascript
 // ecosystem.config.js
 module.exports = {
   apps: [{
     name: 'mikrotik-proxy-api',
     script: './production.js',
-    instances: 'max', // Usar todos os cores
+    instances: 'max', // Use all cores
     exec_mode: 'cluster',
     
-    // Otimizações de performance
+    // Performance optimizations
     node_args: [
       '--max-old-space-size=4096',
       '--optimize-for-size',
       '--gc-interval=100'
     ],
     
-    // Configurações de produção
+    // Production settings
     env_production: {
       NODE_ENV: 'production',
       LOG_LEVEL: 'info',
@@ -929,7 +1192,7 @@ module.exports = {
       MIKROTIK_TIMEOUT: 8000
     },
     
-    // Monitoring e restart
+    // Monitoring and restart
     max_memory_restart: '2G',
     autorestart: true,
     max_restarts: 10,
@@ -942,7 +1205,7 @@ module.exports = {
 };
 ```
 
-### Script de Produção Otimizado
+### Optimized Production Script
 ```javascript
 // production.js
 process.env.UV_THREADPOOL_SIZE = '16';
@@ -952,23 +1215,23 @@ const cluster = require('cluster');
 const os = require('os');
 
 if (cluster.isMaster) {
-  console.log('🚀 Iniciando MikroTik Proxy API em modo cluster');
-  console.log(`📊 CPUs disponíveis: ${os.cpus().length}`);
+  console.log('🚀 Starting MikroTik Proxy API in cluster mode');
+  console.log(`📊 Available CPUs: ${os.cpus().length}`);
   
-  // Criar workers
+  // Create workers
   for (let i = 0; i < os.cpus().length; i++) {
     cluster.fork();
   }
   
-  // Restart automático de workers
+  // Automatic worker restart
   cluster.on('exit', (worker, code, signal) => {
-    console.log(`Worker ${worker.process.pid} morreu. Reiniciando...`);
+    console.log(`Worker ${worker.process.pid} died. Restarting...`);
     cluster.fork();
   });
   
   // Graceful shutdown
   process.on('SIGTERM', () => {
-    console.log('Recebido SIGTERM, fechando workers...');
+    console.log('Received SIGTERM, closing workers...');
     Object.values(cluster.workers).forEach(worker => {
       worker.kill('SIGTERM');
     });
@@ -979,11 +1242,11 @@ if (cluster.isMaster) {
 }
 ```
 
-## ⚙️ Configuração e Deploy
+## ⚙️ Configuration and Deploy
 
-### Variáveis de Ambiente (.env)
+### Environment Variables (.env)
 ```bash
-# Servidor
+# Server
 PORT=3001
 NODE_ENV=production
 LOG_LEVEL=info
@@ -996,7 +1259,7 @@ SUPABASE_SERVICE_KEY=xxx
 # MikroTik
 MIKROTIK_TIMEOUT=8000
 
-# Rate Limiting Otimizado
+# Optimized Rate Limiting
 RATE_LIMIT_WINDOW_MS=60000
 GLOBAL_RATE_LIMIT_MAX_REQUESTS=500
 USER_RATE_LIMIT_MAX_REQUESTS=200
@@ -1011,42 +1274,46 @@ DASHBOARD_PASSWORD=admin123
 # Performance
 MAX_OLD_SPACE_SIZE=4096
 GC_INTERVAL=100
+
+# Production URLs
+API_URL=https://api.mikropix.online
+MIKROTIK_PROXY_URL=http://router.mikropix.online:3001
 ```
 
-### Scripts Disponíveis
+### Available Scripts
 ```bash
-npm start              # Produção
-npm run dev            # Desenvolvimento com nodemon
-npm test               # Executar cliente de teste
-node test-client.js    # Teste manual da API
+npm start              # Production
+npm run dev            # Development with nodemon
+npm test               # Run test client
+node test-client.js    # Manual API test
 ```
 
-### Deploy em VPS
+### VPS Deploy
 ```bash
-# Instalar PM2
+# Install PM2
 npm install -g pm2
 
-# Iniciar aplicação
+# Start application
 pm2 start server.js --name mikrotik-proxy-api
 
-# Configurar auto-restart
+# Configure auto-restart
 pm2 startup
 pm2 save
 ```
 
-## 🔒 Segurança Implementada
+## 🔒 Implemented Security
 
-### Medidas de Segurança
-- **Helmet.js**: Headers de segurança HTTP
-- **Rate Limiting**: Por IP e por token
-- **Token Validation**: Verificação no Supabase
-- **Input Sanitization**: Validação de parâmetros
-- **CORS Configured**: Origins permitidos
-- **Timeout Protection**: Evita requisições infinitas
+### Security Measures
+- **Helmet.js**: HTTP security headers
+- **Rate Limiting**: By IP and by token
+- **Token Validation**: Supabase verification
+- **Input Sanitization**: Parameter validation
+- **CORS Configured**: Allowed origins
+- **Timeout Protection**: Prevents infinite requests
 
-### Headers de Segurança
+### Security Headers
 ```javascript
-// Headers aplicados pelo Helmet
+// Headers applied by Helmet
 Content-Security-Policy
 Cross-Origin-Embedder-Policy
 Cross-Origin-Opener-Policy
@@ -1059,86 +1326,86 @@ X-Download-Options
 X-Permitted-Cross-Domain-Policies
 ```
 
-## 📈 Performance e Monitoramento
+## 📈 Performance and Monitoring
 
-### Otimizações Implementadas
-- **Connection Pooling**: Reutilização de conexões
-- **Request Timeout**: 10s configurável
-- **Quick Connectivity Test**: Teste rápido 3s
-- **Efficient Error Handling**: Categorização sem overhead
-- **Structured Logging**: Logs JSON para análise
+### Implemented Optimizations
+- **Connection Pooling**: Connection reuse
+- **Request Timeout**: Configurable 10s
+- **Quick Connectivity Test**: Fast 3s test
+- **Efficient Error Handling**: Categorization without overhead
+- **Structured Logging**: JSON logs for analysis
 
-### Métricas Coletadas
+### Collected Metrics
 ```javascript
-// Por requisição
+// Per request
 - Response Time (ms)
 - Success/Failure Rate
 - Error Codes Distribution
 - Rate Limit Hits
 - MikroTik IP/ID Mapping
 
-// Por MikroTik
+// Per MikroTik
 - Connection Success Rate
 - Average Response Time
 - Most Used Endpoints
 - Credential Issues Count
 ```
 
-## 🛠️ Debugging e Troubleshooting
+## 🛠️ Debugging and Troubleshooting
 
-### Logs de Debug
+### Debug Logs
 ```bash
-# Ver logs em tempo real
+# View real-time logs
 tail -f logs/combined.log
 
-# Filtrar por erro
+# Filter by error
 grep "ERROR" logs/error.log
 
-# Filtrar por MikroTik específico
+# Filter by specific MikroTik
 grep "10.66.66.10" logs/combined.log
 ```
 
-### Problemas Comuns
+### Common Issues
 ```javascript
 // MikroTik offline
 {
   "error": "MikroTik offline",
   "code": "DEVICE_OFFLINE",
-  "details": "Dispositivo não está respondendo na porta 80"
+  "details": "Device is not responding on port 80"
 }
 
-// Credenciais inválidas
+// Invalid credentials
 {
-  "error": "Usuário ou senha incorretos", 
+  "error": "Incorrect username or password", 
   "code": "INVALID_CREDENTIALS",
-  "details": "Verificar username e password do MikroTik"
+  "details": "Check MikroTik username and password"
 }
 
-// API REST não habilitada
+// REST API not enabled
 {
-  "error": "Recurso não encontrado",
+  "error": "Resource not found",
   "code": "ENDPOINT_NOT_FOUND", 
-  "details": "API REST pode não estar habilitada"
+  "details": "REST API may not be enabled"
 }
 ```
 
 ### Health Check Endpoints
 ```bash
-# Status básico
+# Basic status
 curl http://localhost:3001/health
 
-# Status detalhado
+# Detailed status
 curl http://localhost:3001/health/detailed
 ```
 
-## 📊 Sistema de Benchmark e Performance (NOVO)
+## 📊 Benchmark and Performance System (NEW)
 
-### Ferramenta de Benchmark Integrada
+### Integrated Benchmark Tool
 ```javascript
 // benchmark.js
 class Benchmark {
   async runConcurrentTest() {
-    console.log('🚀 Teste de concorrência: 50 req simultâneas por 30s');
+    console.log('🚀 Concurrency test: 50 simultaneous req for 30s');
     
     const workers = [];
     for (let i = 0; i < 50; i++) {
@@ -1154,15 +1421,15 @@ class Benchmark {
     const requestsPerSecond = (this.results.totalRequests / duration) * 1000;
     const successRate = (this.results.successfulRequests / this.results.totalRequests) * 100;
     
-    console.log('📊 RESULTADOS:');
+    console.log('📊 RESULTS:');
     console.log(`⚡ ${requestsPerSecond.toFixed(2)} req/s`);
-    console.log(`🎯 ${successRate.toFixed(2)}% sucesso`);
-    console.log(`📊 ${avgResponseTime.toFixed(2)}ms médio`);
+    console.log(`🎯 ${successRate.toFixed(2)}% success`);
+    console.log(`📊 ${avgResponseTime.toFixed(2)}ms average`);
   }
 }
 ```
 
-### Scripts NPM de Produção
+### Production NPM Scripts
 ```json
 {
   "scripts": {
@@ -1177,55 +1444,55 @@ class Benchmark {
 }
 ```
 
-## 🔮 Resultados de Performance Alcançados
+## 🔮 Achieved Performance Results
 
-### Benchmarks em Produção
+### Production Benchmarks
 ```bash
-📊 RESULTADOS DO BENCHMARK:
+📊 BENCHMARK RESULTS:
 ══════════════════════════════════════════════════
-⏱️  Duração: 30.00s
-📈 Requisições totais: 1547
-✅ Sucessos: 1523
-❌ Falhas: 24
-🎯 Taxa de sucesso: 98.45%
-⚡ Requisições/segundo: 51.57
-📊 Tempo médio de resposta: 142.33ms
+⏱️  Duration: 30.00s
+📈 Total requests: 1547
+✅ Successes: 1523
+❌ Failures: 24
+🎯 Success rate: 98.45%
+⚡ Requests/second: 51.57
+📊 Average response time: 142.33ms
 
-🎯 PERCENTIS DE RESPOSTA:
+🎯 RESPONSE PERCENTILES:
 P50: 89ms
 P90: 234ms
 P95: 312ms
 P99: 567ms
 ```
 
-### Otimizações Implementadas
-- **Cache Hit Rate**: 85% dos usuários/MikroTiks em cache
-- **Offline Detection**: 30s cache reduz 90% das tentativas
-- **Rate Limiting**: 0% de false positives
-- **Memory Usage**: <200MB por worker em produção
-- **CPU Usage**: <30% com 4 workers em VPS de 2 cores
+### Implemented Optimizations
+- **Cache Hit Rate**: 85% of users/MikroTiks in cache
+- **Offline Detection**: 30s cache reduces 90% of attempts
+- **Rate Limiting**: 0% false positives
+- **Memory Usage**: <200MB per worker in production
+- **CPU Usage**: <30% with 4 workers on 2-core VPS
 
-## 🛡️ Roadmap de Segurança e Performance
+## 🛡️ Security and Performance Roadmap
 
-### ✅ Implementado
-- **Authentication by Ownership**: Session-based com cache
-- **Rate Limiting Inteligente**: Por usuário com sliding window
-- **Cache Multi-Layer**: Usuários, MikroTiks, e dispositivos offline
-- **Dashboard em Tempo Real**: Métricas e monitoramento
-- **PM2 Cluster Mode**: Auto-scaling e restart automático
-- **Logs Estruturados**: Winston com rotação e níveis
-- **Benchmarking**: Ferramentas de performance integradas
+### ✅ Implemented
+- **Authentication by Ownership**: Session-based with cache
+- **Intelligent Rate Limiting**: Per-user with sliding window
+- **Multi-Layer Cache**: Users, MikroTiks, and offline devices
+- **Real-time Dashboard**: Metrics and monitoring
+- **PM2 Cluster Mode**: Auto-scaling and automatic restart
+- **Structured Logs**: Winston with rotation and levels
+- **Benchmarking**: Integrated performance tools
 
-### 🔄 Próximas Melhorias
-- **Redis Cache Layer**: Para cache compartilhado entre workers
-- **WebSocket Metrics**: Updates em tempo real no dashboard
-- **Load Balancer**: Nginx com upstream para múltiplas instâncias
-- **Health Checks**: Probes automáticos de saúde dos MikroTiks
-- **Alerting System**: Notificações para falhas críticas
+### 🔄 Next Improvements
+- **Redis Cache Layer**: For shared cache between workers
+- **WebSocket Metrics**: Real-time dashboard updates
+- **Load Balancer**: Nginx with upstream for multiple instances
+- **Health Checks**: Automatic MikroTik health probes
+- **Alerting System**: Critical failure notifications
 
-### Padrões de Extensão
+### Extension Patterns
 ```javascript
-// Novo endpoint MikroTik
+// New MikroTik endpoint
 router.get('/:id/new-feature', async (req, res) => {
   try {
     const result = await mikrotikService.makeRequest(
@@ -1235,29 +1502,29 @@ router.get('/:id/new-feature', async (req, res) => {
     
     res.json(result);
   } catch (error) {
-    logger.error('Erro no novo endpoint:', error);
+    logger.error('Error in new endpoint:', error);
     res.status(500).json({
-      error: 'Erro interno',
+      error: 'Internal error',
       code: 'NEW_FEATURE_ERROR'
     });
   }
 });
 ```
 
-## 📊 Integração com Frontend
+## 📊 Frontend Integration
 
-### Atualização do MikrotiksList.tsx
+### MikrotiksList.tsx Update
 ```typescript
-// Nova URL da API
+// New API URL
 const baseUrl = 'http://router.mikropix.online:3001';
 
-// Nova autenticação
+// New authentication
 headers: {
   'Authorization': `Bearer ${mikrotik.token}`,
   'Content-Type': 'application/json'
 }
 
-// Tratamento de novos códigos de erro
+// Handle new error codes
 const getErrorStyle = (stats: MikrotikStats) => {
   return stats?.errorType === 'credentials' ? 'text-yellow-400' : 
          stats?.errorType === 'api' ? 'text-purple-400' : 
@@ -1265,7 +1532,7 @@ const getErrorStyle = (stats: MikrotikStats) => {
 };
 ```
 
-### Mapeamento de Códigos para UI
+### Error Type Mapping for UI
 ```typescript
 interface ErrorTypeMapping {
   DEVICE_OFFLINE: 'offline';
@@ -1279,123 +1546,145 @@ interface ErrorTypeMapping {
 
 ---
 
-## 🎯 **Sistema Completo de Produção Alcançado**
+## 🎯 **Complete Production System Achieved**
 
-### ✅ **Autenticação e Segurança de Classe Enterprise**
-- **Authentication by Ownership**: Session-based com verificação de propriedade do usuário
-- **Cache Inteligente**: 5min TTL para usuários/MikroTiks com 85% hit rate
-- **Rate Limiting Avançado**: 200 req/min por usuário com sliding window otimizado
-- **Security Headers**: Helmet.js com proteções completas
+### ✅ **Enterprise-Class Authentication and Security**
+- **Authentication by Ownership**: Session-based with user ownership verification
+- **Intelligent Cache**: 5min TTL for users/MikroTiks with 85% hit rate
+- **Advanced Rate Limiting**: 200 req/min per user with optimized sliding window
+- **Security Headers**: Helmet.js with complete protections
 
-### ✅ **Performance e Escalabilidade de Produção**
-- **PM2 Cluster Mode**: Auto-scaling com todos os cores disponíveis
-- **Cache Offline**: 30s TTL reduz 90% das tentativas em dispositivos offline
-- **Logs Assíncronos**: Winston com rotação diária e níveis configuráveis
-- **Memory Optimization**: <200MB por worker, restart automático em 2GB
+### ✅ **Production Performance and Scalability**
+- **PM2 Cluster Mode**: Auto-scaling with all available cores
+- **Offline Cache**: 30s TTL reduces 90% of attempts on offline devices
+- **Async Logs**: Winston with daily rotation and configurable levels
+- **Memory Optimization**: <200MB per worker, automatic restart at 2GB
 
-### ✅ **Monitoramento e Observabilidade Completos**
-- **Dashboard em Tempo Real**: Interface web com métricas ao vivo
-- **Benchmark Integrado**: Ferramentas de performance com percentis
-- **Structured Logging**: JSON logs com rotação e análise facilizada
-- **Health Checks**: Endpoints de saúde com detalhes do Supabase
+### ✅ **Complete Monitoring and Observability**
+- **Real-time Dashboard**: Web interface with live metrics
+- **Integrated Benchmark**: Performance tools with percentiles
+- **Structured Logging**: JSON logs with rotation and easy analysis
+- **Health Checks**: Health endpoints with Supabase details
 
-### ✅ **Resultados de Performance Comprovados**
+### ✅ **Proven Performance Results**
 ```bash
-📊 Benchmark de Produção:
-• 51.57 req/s sustentáveis por 30 segundos
-• 98.45% taxa de sucesso em alta concorrência
-• 142ms tempo médio de resposta
-• P95: 312ms (95% das requests < 312ms)
-• 85% cache hit rate (usuários/MikroTiks)
-• 90% redução de tentativas offline
+📊 Production Benchmark:
+• 51.57 sustainable req/s for 30 seconds
+• 98.45% success rate under high concurrency
+• 142ms average response time
+• P95: 312ms (95% of requests < 312ms)
+• 85% cache hit rate (users/MikroTiks)
+• 90% reduction in offline attempts
 ```
 
-### ✅ **Integração e Deploy Enterprise**
-- **Frontend Integration**: MikrotiksList.tsx atualizado com nova API
-- **Production Scripts**: PM2 ecosystem com restart automático
-- **Environment Configuration**: Variáveis otimizadas para produção
-- **Graceful Shutdown**: 5s timeout com cleanup completo
+### ✅ **Enterprise Integration and Deploy**
+- **Frontend Integration**: MikrotiksList.tsx updated with new API
+- **Production Scripts**: PM2 ecosystem with automatic restart
+- **Environment Configuration**: Production-optimized variables
+- **Graceful Shutdown**: 5s timeout with complete cleanup
 
-**🏆 MikroTik Proxy API - Sistema de produção enterprise-grade para comunicação ultra-segura e performática com RouterOS v7+!**
+### ✅ **Complete Captive Portal System**
+- **Password Verification**: Direct voucher verification via public API
+- **Automatic Authentication**: Direct MikroTik login with URL redirection
+- **Template Management**: Complete variable substitution system
+- **Multi-template Support**: Basic, advanced, and custom templates
+
+**🏆 MikroTik Proxy API - Enterprise-grade production system for ultra-secure and performant communication with RouterOS v7+!**
 
 ---
 
-### 📈 **Evolução do Sistema**
+### 📈 **System Evolution**
 
-| **Aspecto** | **Estado Anterior** | **Estado Atual de Produção** |
+| **Aspect** | **Previous State** | **Current Production State** |
 |-------------|-------------------|---------------------------|
-| **Autenticação** | Token MikroTik exposto | Session-based + rotas públicas |
-| **Performance** | Sem cache, 1 thread | Cache + PM2 cluster + otimizações |
-| **Rate Limiting** | Por IP básico | Por usuário + por IP (públicas) |
-| **Monitoramento** | Logs básicos | Dashboard real-time + métricas |
-| **Deploy** | Node simples | PM2 cluster + restart automático |
-| **Segurança** | Headers básicos | Helmet + validação + sanitização |
-| **Escalabilidade** | 1 instância | Cluster multi-core + load balancing |
-| **🆕 Integração** | API externa antiga | **Rotas públicas nativas** |
-| **🆕 Vouchers** | Conexão direta | **API proxy sem auth** |
-| **🆕 Comentários** | Formato verboso | **Formato abreviado (90% menor)** |
+| **Authentication** | Exposed MikroTik token | Session-based + public routes |
+| **Performance** | No cache, 1 thread | Cache + PM2 cluster + optimizations |
+| **Rate Limiting** | Basic per IP | Per user + per IP (public) |
+| **Monitoring** | Basic logs | Real-time dashboard + metrics |
+| **Deploy** | Simple Node | PM2 cluster + automatic restart |
+| **Security** | Basic headers | Helmet + validation + sanitization |
+| **Scalability** | 1 instance | Multi-core cluster + load balancing |
+| **🆕 Integration** | Old external API | **Native public routes** |
+| **🆕 Vouchers** | Direct connection | **Proxy API without auth** |
+| **🆕 Comments** | Verbose format | **Abbreviated format (90% smaller)** |
+| **🆕 Captive Portal** | Manual config | **Complete automation** |
 
-### 🎯 **Novas Funcionalidades Implementadas (v2.0)**
+### 🎯 **New Features Implemented (v2.0)**
 
-#### ✅ **Rotas Públicas para Pagamentos**
-- **Verificação de vouchers** sem autenticação (captive portals)
-- **Criação de usuários hotspot** via API pública
-- **Criação de IP bindings** via API pública
-- **Rate limiting por IP** específico (50 req/min)
+#### ✅ **Public Routes for Payments**
+- **Voucher verification** without authentication (captive portals)
+- **Hotspot user creation** via public API
+- **IP binding creation** via public API
+- **IP-specific rate limiting** (50 req/min)
 
-#### ✅ **Sistema de Comentários Otimizado**
-- **Formato abreviado**: `C:16/07/2025 V:10 D:1d`
-- **90% menos caracteres** que formato anterior
-- **Compatibilidade total** com RouterOS
-- **Parsing otimizado** para sistemas
+#### ✅ **Optimized Comment System**
+- **Abbreviated format**: `C:16/07/2025 V:10 D:1d`
+- **90% fewer characters** than previous format
+- **Full RouterOS compatibility**
+- **Optimized parsing** for systems
 
-#### ✅ **Integração Backend Completa**
-- **PaymentController** migrado para nova API
-- **MikrotikUserService** migrado para nova API
-- **Eliminação da API externa** antiga
-- **Logs unificados** em todo sistema
+#### ✅ **Complete Backend Integration**
+- **PaymentController** migrated to new API
+- **MikrotikUserService** migrated to new API
+- **Old external API eliminated**
+- **Unified logs** across entire system
 
-#### ✅ **Testes Funcionais Comprovados**
+#### ✅ **Complete Captive Portal System**
+- **Automatic password verification** via public API
+- **Direct MikroTik authentication** with URL redirection
+- **Complete template management** with variable substitution
+- **Multi-template support** (basic, advanced, custom)
+
+#### ✅ **Proven Functional Tests**
 ```bash
-✅ Verificação voucher: /api/mikrotik/public/check-voucher/:id
-✅ Criação usuário: /api/mikrotik/public/create-hotspot-user/:id  
-✅ Criação IP binding: /api/mikrotik/public/create-ip-binding/:id
-✅ Response times: 1100-1400ms (excelente)
-✅ Rate limiting: 50 req/min por IP funcionando
+✅ Voucher verification: /api/mikrotik/public/check-voucher/:id
+✅ User creation: /api/mikrotik/public/create-hotspot-user/:id  
+✅ IP binding creation: /api/mikrotik/public/create-ip-binding/:id
+✅ Captive portal authentication: Complete workflow tested
+✅ Response times: 1100-1400ms (excellent)
+✅ Rate limiting: 50 req/min per IP working
 ```
 
-**Sistema transformado de proxy básico para solução enterprise completa com integração de pagamentos! 🚀**
+**System transformed from basic proxy to complete enterprise solution with payment integration and captive portal automation! 🚀**
 
 ---
 
-## 🏆 **MikroTik Proxy API v2.0 - Sistema Completo de Produção**
+## 🏆 **MikroTik Proxy API v2.0 - Complete Production System**
 
-### **🎯 Conquistas Principais**
-✅ **API Proxy Enterprise** com autenticação por ownership  
-✅ **Rotas Públicas** para integração de pagamentos  
-✅ **Rate Limiting Dual** (usuário + IP)  
-✅ **Cache Inteligente** multi-layer  
-✅ **Comentários Otimizados** (90% menor)  
-✅ **Templates Automáticos** via /tool/fetch  
-✅ **Dashboard Real-time** com métricas  
+### **🎯 Main Achievements**
+✅ **Enterprise Proxy API** with ownership authentication  
+✅ **Public Routes** for payment integration  
+✅ **Dual Rate Limiting** (user + IP)  
+✅ **Intelligent Cache** multi-layer  
+✅ **Optimized Comments** (90% smaller)  
+✅ **Automatic Templates** via /tool/fetch  
+✅ **Real-time Dashboard** with metrics  
 ✅ **PM2 Cluster** auto-scaling  
-✅ **Testes Funcionais** comprovados  
+✅ **Captive Portal System** with automatic authentication  
+✅ **Functional Tests** proven  
 
-### **🚀 Performance Comprovada**
-- **51.57 req/s** sustentáveis  
-- **98.45%** taxa de sucesso  
-- **142ms** tempo médio de resposta  
+### **🚀 Proven Performance**
+- **51.57 req/s** sustainable  
+- **98.45%** success rate  
+- **142ms** average response time  
 - **85%** cache hit rate  
-- **1100-1400ms** APIs públicas  
+- **1100-1400ms** public APIs  
 
-### **🔧 Integração Completa**
-- ✅ Backend MikroPix integrado  
-- ✅ PaymentController migrado  
-- ✅ MikrotikUserService migrado  
-- ✅ API externa eliminada  
-- ✅ Sistema unificado  
+### **🔧 Complete Integration**
+- ✅ MikroPix backend integrated  
+- ✅ PaymentController migrated  
+- ✅ MikrotikUserService migrated  
+- ✅ External API eliminated  
+- ✅ Unified system  
+- ✅ Template manager with URL substitution  
+- ✅ Complete captive portal workflow  
 
-**🎉 Sistema de produção enterprise-grade para MikroTik RouterOS v7+ completo e testado! 🎉**
+### **🌐 Production URLs**
+- **API Backend**: `https://api.mikropix.online`
+- **MikroTik Proxy**: `http://router.mikropix.online:3001`
+- **Template Variables**: Automatic substitution system
+
+**🎉 Enterprise-grade production system for MikroTik RouterOS v7+ complete, tested, and with full captive portal automation! 🎉**
 
 🤖 Generated with [Claude Code](https://claude.ai/code)
 

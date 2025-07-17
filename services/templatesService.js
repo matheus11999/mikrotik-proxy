@@ -195,7 +195,11 @@ class TemplatesService {
       // Substituir variáveis automáticas do sistema
       const systemVariables = {
         'MIKROTIK_ID': mikrotikId || '',
-        'API_URL': process.env.PROXY_BASE_URL || 'http://router.mikropix.online:3001',
+        'API_URL': 'https://api.mikropix.online',
+        'MIKROTIK_PROXY_URL': 'http://router.mikropix.online:3001',
+        'BACKEND_URL': 'https://api.mikropix.online',
+        'HOTSPOT_NAME': 'MikroPix WiFi',
+        'SUCCESS_REDIRECT': 'http://google.com',
         'TIMESTAMP': new Date().toISOString()
       };
 
