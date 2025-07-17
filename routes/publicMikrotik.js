@@ -283,17 +283,23 @@ router.post('/create-ip-binding/:mikrotikId',
         port: mikrotik.port || 8728
       };
 
-      // Calcular expiração (timezone America/Manaus = GMT-4)
+      // Calcular expiração usando timezone America/Manaus
       const now = new Date();
       const expirationDate = new Date(now.getTime() + (expiration_minutes * 60 * 1000));
       
-      // Converter para timezone America/Manaus (GMT-4)
-      const manausOffset = -4 * 60; // -4 horas em minutos
-      const localOffset = now.getTimezoneOffset(); // offset do sistema em minutos
-      const manausTime = new Date(expirationDate.getTime() + (localOffset + manausOffset) * 60 * 1000);
+      // Converter para timezone America/Manaus usando toLocaleString
+      const manausTimeStr = expirationDate.toLocaleString("sv-SE", {
+        timeZone: "America/Manaus",
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      });
       
-      // Formato MikroTik: DD/MM/YYYY HH:MM:SS
-      const expirationStr = manausTime.toISOString().slice(0, 19).replace('T', ' ');
+      // Formato já está correto: YYYY-MM-DD HH:MM:SS
+      const expirationStr = manausTimeStr.replace(',', '');
 
       // Criar comentário com formato simplificado
       let finalComment = comment || '';
