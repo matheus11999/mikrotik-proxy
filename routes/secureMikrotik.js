@@ -188,6 +188,167 @@ router.get('/list',
   }
 );
 
+// Rota para verificar/criar scheduler global de limpeza
+router.post('/:mikrotikId/setup-cleanup-scheduler', 
+  authenticateByUserSession,
+  userRateLimit,
+  async (req, res) => {
+    const startTime = Date.now();
+    
+    try {
+      const { mikrotikId } = req.params;
+
+      logger.info(`Configurando scheduler global de limpeza`, {
+        mikrotikId,
+        userId: req.user.id,
+        userEmail: req.user.email
+      });
+
+      // Verificação rápida de cache offline
+      const cachedOffline = metricsCollector.isDeviceCachedOffline(req.mikrotik);
+      if (cachedOffline) {
+        const cacheExpiresIn = Math.max(0, metricsCollector.metrics.offlineCacheDuration - (Date.now() - cachedOffline.timestamp));
+        
+        res.set({
+          'Cache-Control': `private, max-age=${Math.ceil(cacheExpiresIn / 1000)}`,
+          'X-Cache': 'HIT-OFFLINE',
+          'X-Cache-Expires': cacheExpiresIn
+        });
+        
+        return res.status(200).json({
+          success: false,
+          error: 'MikroTik offline (cached)',
+          code: 'DEVICE_OFFLINE',
+          responseTime: 0,
+          cached: true,
+          cacheExpiresIn
+        });
+      }
+
+      // Verificar se o scheduler já existe
+      const existingSchedulers = await mikrotikService.makeRequest(
+        req.mikrotik, 
+        '/system/scheduler', 
+        'GET'
+      );
+
+      let cleanupSchedulerExists = false;
+      if (existingSchedulers.success && existingSchedulers.data) {
+        cleanupSchedulerExists = existingSchedulers.data.some(scheduler => 
+          scheduler.name === 'mikropix-ip-binding-cleanup'
+        );
+      }
+
+      if (cleanupSchedulerExists) {
+        const responseTime = Date.now() - startTime;
+        res.set({
+          'X-Response-Time': `${responseTime}ms`,
+          'X-Cache': 'MISS',
+          'X-MikroTik-Id': mikrotikId
+        });
+
+        return res.status(200).json({
+          success: true,
+          message: 'Scheduler global de limpeza já existe',
+          exists: true,
+          responseTime
+        });
+      }
+
+      // Criar scheduler global de limpeza
+      const cleanupScript = `
+        :local now [/system clock get time];
+        :local today [/system clock get date];
+        :local currentTimestamp [:totime ("$today $now")];
+        
+        :foreach binding in=[/ip hotspot ip-binding find] do={
+          :local comment [/ip hotspot ip-binding get $binding comment];
+          :if ([:find $comment "e:"] >= 0) do={
+            :local expiryStart ([:find $comment "e:"] + 2);
+            :local expiryEnd [:find $comment " " $expiryStart];
+            :if ($expiryEnd < 0) do={ :set expiryEnd [:len $comment] };
+            :local expiryStr [:pick $comment $expiryStart $expiryEnd];
+            
+            :do {
+              :local expiryTimestamp [:totime $expiryStr];
+              :if ($currentTimestamp > $expiryTimestamp) do={
+                :local address [/ip hotspot ip-binding get $binding address];
+                :local mac [/ip hotspot ip-binding get $binding mac-address];
+                /ip hotspot ip-binding remove $binding;
+                :log info "[MIKROPIX-CLEANUP] IP binding expirado removido: $address ($mac)";
+              }
+            } on-error={
+              :log warning "[MIKROPIX-CLEANUP] Erro ao processar expiracao: $comment";
+            }
+          }
+        }
+      `;
+
+      const schedulerData = {
+        name: 'mikropix-ip-binding-cleanup',
+        'start-time': 'startup',
+        interval: '2m',
+        'on-event': cleanupScript.trim(),
+        policy: 'read,write,policy,test',
+        disabled: 'false',
+        comment: 'MIKROPIX - Remove IP bindings expirados automaticamente'
+      };
+
+      // Criar o scheduler
+      const result = await mikrotikService.makeRequest(
+        req.mikrotik, 
+        '/system/scheduler/add', 
+        'POST', 
+        schedulerData
+      );
+
+      const responseTime = Date.now() - startTime;
+
+      // Log assíncrono
+      setImmediate(() => {
+        supabaseService.logApiAccess(mikrotikId, '/system/scheduler/add', 'POST', result.success, responseTime)
+          .catch(err => logger.debug('Log API access failed:', err.message));
+      });
+
+      // Headers de performance
+      res.set({
+        'X-Response-Time': `${responseTime}ms`,
+        'X-Cache': 'MISS',
+        'X-MikroTik-Id': mikrotikId
+      });
+
+      if (result.success) {
+        res.status(201).json({
+          success: true,
+          message: 'Scheduler global de limpeza criado com sucesso',
+          data: result.data,
+          responseTime: result.responseTime
+        });
+      } else {
+        const statusCode = result.code === 'DEVICE_OFFLINE' ? 200 : (result.status || 500);
+        
+        res.status(statusCode).json({
+          success: false,
+          error: result.error,
+          code: result.code,
+          responseTime: result.responseTime
+        });
+      }
+
+    } catch (error) {
+      const responseTime = Date.now() - startTime;
+      logger.error('Erro ao configurar scheduler global:', error);
+
+      res.status(500).json({
+        success: false,
+        error: 'Erro interno do servidor',
+        code: 'INTERNAL_ERROR',
+        responseTime
+      });
+    }
+  }
+);
+
 // Rota para criar scheduler no MikroTik
 router.post('/:mikrotikId/scheduler', 
   authenticateByUserSession,
@@ -266,7 +427,7 @@ router.post('/:mikrotikId/scheduler',
       // Fazer requisição para criar o scheduler
       const result = await mikrotikService.makeRequest(
         req.mikrotik, 
-        '/system/scheduler', 
+        '/system/scheduler/add', 
         'POST', 
         schedulerData
       );
@@ -275,7 +436,7 @@ router.post('/:mikrotikId/scheduler',
 
       // Log assíncrono
       setImmediate(() => {
-        supabaseService.logApiAccess(mikrotikId, '/system/scheduler', 'POST', result.success, responseTime)
+        supabaseService.logApiAccess(mikrotikId, '/system/scheduler/add', 'POST', result.success, responseTime)
           .catch(err => logger.debug('Log API access failed:', err.message));
       });
 

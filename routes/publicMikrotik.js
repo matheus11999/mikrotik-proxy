@@ -245,9 +245,9 @@ router.post('/create-ip-binding/:mikrotikId',
     
     try {
       const { mikrotikId } = req.params;
-      const { address, mac_address, comment } = req.body;
+      const { address, mac_address, comment, expiration_minutes = 60 } = req.body;
 
-      logger.info(`[PUBLIC] Criando IP binding: ${address} -> ${mac_address} no MikroTik: ${mikrotikId}`);
+      logger.info(`[PUBLIC] Criando IP binding: ${address} -> ${mac_address} no MikroTik: ${mikrotikId}, expiração: ${expiration_minutes}min`);
 
       // Validar campos obrigatórios
       if (!address || !mac_address || !mikrotikId) {
@@ -283,6 +283,24 @@ router.post('/create-ip-binding/:mikrotikId',
         port: mikrotik.port || 8728
       };
 
+      // Calcular expiração (timezone America/Manaus = GMT-4)
+      const now = new Date();
+      const expirationDate = new Date(now.getTime() + (expiration_minutes * 60 * 1000));
+      
+      // Converter para timezone America/Manaus (GMT-4)
+      const manausOffset = -4 * 60; // -4 horas em minutos
+      const localOffset = now.getTimezoneOffset(); // offset do sistema em minutos
+      const manausTime = new Date(expirationDate.getTime() + (localOffset + manausOffset) * 60 * 1000);
+      
+      // Formato MikroTik: DD/MM/YYYY HH:MM:SS
+      const expirationStr = manausTime.toISOString().slice(0, 19).replace('T', ' ');
+
+      // Criar comentário com formato simplificado
+      let finalComment = comment || '';
+      if (expiration_minutes > 0) {
+        finalComment = finalComment ? `${finalComment} e:${expirationStr}` : `e:${expirationStr}`;
+      }
+
       // Criar objeto do IP binding do hotspot
       const bindingData = {
         address,
@@ -290,9 +308,69 @@ router.post('/create-ip-binding/:mikrotikId',
         type: 'bypassed' // ou 'blocked' - bypassed permite acesso sem login
       };
 
-      // Adicionar comentário se fornecido
-      if (comment) {
-        bindingData.comment = comment;
+      // Adicionar comentário com expiração
+      if (finalComment) {
+        bindingData.comment = finalComment;
+      }
+
+      // Primeiro, tentar criar o scheduler global se não existir
+      if (expiration_minutes > 0) {
+        try {
+          const existingSchedulers = await mikrotikService.makeRequest(mikrotikConfig, '/system/scheduler', 'GET');
+          
+          let cleanupSchedulerExists = false;
+          if (existingSchedulers.success && existingSchedulers.data) {
+            cleanupSchedulerExists = existingSchedulers.data.some(scheduler => 
+              scheduler.name === 'mikropix-ip-binding-cleanup'
+            );
+          }
+
+          if (!cleanupSchedulerExists) {
+            const cleanupScript = `
+              :local now [/system clock get time];
+              :local today [/system clock get date];
+              :local currentTimestamp [:totime ("$today $now")];
+              
+              :foreach binding in=[/ip hotspot ip-binding find] do={
+                :local comment [/ip hotspot ip-binding get $binding comment];
+                :if ([:find $comment "e:"] >= 0) do={
+                  :local expiryStart ([:find $comment "e:"] + 2);
+                  :local expiryEnd [:find $comment " " $expiryStart];
+                  :if ($expiryEnd < 0) do={ :set expiryEnd [:len $comment] };
+                  :local expiryStr [:pick $comment $expiryStart $expiryEnd];
+                  
+                  :do {
+                    :local expiryTimestamp [:totime $expiryStr];
+                    :if ($currentTimestamp > $expiryTimestamp) do={
+                      :local address [/ip hotspot ip-binding get $binding address];
+                      :local mac [/ip hotspot ip-binding get $binding mac-address];
+                      /ip hotspot ip-binding remove $binding;
+                      :log info "[MIKROPIX-CLEANUP] IP binding expirado removido: $address ($mac)";
+                    }
+                  } on-error={
+                    :log warning "[MIKROPIX-CLEANUP] Erro ao processar expiracao: $comment";
+                  }
+                }
+              }
+            `;
+
+            const schedulerData = {
+              name: 'mikropix-ip-binding-cleanup',
+              'start-time': 'startup',
+              interval: '2m',
+              'on-event': cleanupScript.trim(),
+              policy: 'read,write,policy,test',
+              disabled: 'false',
+              comment: 'MIKROPIX - Remove IP bindings expirados automaticamente'
+            };
+
+            await mikrotikService.makeRequest(mikrotikConfig, '/system/scheduler/add', 'POST', schedulerData);
+            logger.info(`[PUBLIC] Scheduler global de limpeza criado para MikroTik: ${mikrotikId}`);
+          }
+        } catch (schedulerError) {
+          logger.warning(`[PUBLIC] Erro ao criar scheduler global: ${schedulerError.message}`);
+          // Continuar mesmo se não conseguir criar o scheduler
+        }
       }
 
       // Criar IP binding do hotspot usando REST API
@@ -313,6 +391,7 @@ router.post('/create-ip-binding/:mikrotikId',
         success: true,
         message: 'IP binding criado com sucesso',
         binding: bindingData,
+        expiration: expiration_minutes > 0 ? expirationStr : null,
         responseTime
       });
 
