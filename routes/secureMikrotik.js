@@ -188,4 +188,134 @@ router.get('/list',
   }
 );
 
+// Rota para criar scheduler no MikroTik
+router.post('/:mikrotikId/scheduler', 
+  authenticateByUserSession,
+  userRateLimit,
+  async (req, res) => {
+    const startTime = Date.now();
+    
+    try {
+      const { mikrotikId } = req.params;
+      const { 
+        name, 
+        start_date, 
+        start_time, 
+        interval,
+        count,
+        on_event,
+        policy = 'read,write,policy,test',
+        disabled = false,
+        comment = ''
+      } = req.body;
+
+      // Validação dos campos obrigatórios
+      if (!name || !start_date || !start_time || !on_event) {
+        return res.status(400).json({
+          success: false,
+          error: 'Campos obrigatórios: name, start_date, start_time, on_event',
+          code: 'MISSING_REQUIRED_FIELDS'
+        });
+      }
+
+      logger.info(`Criando scheduler no MikroTik`, {
+        mikrotikId,
+        name,
+        start_date,
+        start_time,
+        userId: req.user.id,
+        userEmail: req.user.email
+      });
+
+      // Verificação rápida de cache offline
+      const cachedOffline = metricsCollector.isDeviceCachedOffline(req.mikrotik);
+      if (cachedOffline) {
+        const cacheExpiresIn = Math.max(0, metricsCollector.metrics.offlineCacheDuration - (Date.now() - cachedOffline.timestamp));
+        
+        res.set({
+          'Cache-Control': `private, max-age=${Math.ceil(cacheExpiresIn / 1000)}`,
+          'X-Cache': 'HIT-OFFLINE',
+          'X-Cache-Expires': cacheExpiresIn
+        });
+        
+        return res.status(200).json({
+          success: false,
+          error: 'MikroTik offline (cached)',
+          code: 'DEVICE_OFFLINE',
+          responseTime: 0,
+          cached: true,
+          cacheExpiresIn
+        });
+      }
+
+      // Preparar dados do scheduler
+      const schedulerData = {
+        name,
+        'start-date': start_date,
+        'start-time': start_time,
+        policy,
+        'on-event': on_event,
+        disabled: disabled.toString()
+      };
+
+      // Campos opcionais
+      if (interval) schedulerData.interval = interval;
+      if (count) schedulerData.count = count.toString();
+      if (comment) schedulerData.comment = comment;
+
+      // Fazer requisição para criar o scheduler
+      const result = await mikrotikService.makeRequest(
+        req.mikrotik, 
+        '/system/scheduler', 
+        'POST', 
+        schedulerData
+      );
+
+      const responseTime = Date.now() - startTime;
+
+      // Log assíncrono
+      setImmediate(() => {
+        supabaseService.logApiAccess(mikrotikId, '/system/scheduler', 'POST', result.success, responseTime)
+          .catch(err => logger.debug('Log API access failed:', err.message));
+      });
+
+      // Headers de performance
+      res.set({
+        'X-Response-Time': `${responseTime}ms`,
+        'X-Cache': 'MISS',
+        'X-MikroTik-Id': mikrotikId
+      });
+
+      if (result.success) {
+        res.status(201).json({
+          success: true,
+          message: 'Scheduler criado com sucesso',
+          data: result.data,
+          responseTime: result.responseTime
+        });
+      } else {
+        const statusCode = result.code === 'DEVICE_OFFLINE' ? 200 : (result.status || 500);
+        
+        res.status(statusCode).json({
+          success: false,
+          error: result.error,
+          code: result.code,
+          responseTime: result.responseTime
+        });
+      }
+
+    } catch (error) {
+      const responseTime = Date.now() - startTime;
+      logger.error('Erro ao criar scheduler:', error);
+
+      res.status(500).json({
+        success: false,
+        error: 'Erro interno do servidor',
+        code: 'INTERNAL_ERROR',
+        responseTime
+      });
+    }
+  }
+);
+
 module.exports = router;
