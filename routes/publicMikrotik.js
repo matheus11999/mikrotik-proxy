@@ -283,28 +283,28 @@ router.post('/create-ip-binding/:mikrotikId',
         port: mikrotik.port || 8728
       };
 
-      // Calcular expiração usando timezone America/Manaus
+      // Calcular expiração usando segundos Unix (epoch) para evitar problemas de timezone
       const now = new Date();
-      const expirationDate = new Date(now.getTime() + (expiration_minutes * 60 * 1000));
+      const expirationTimestamp = Math.floor(now.getTime() / 1000) + (expiration_minutes * 60);
       
-      // Converter para timezone America/Manaus usando toLocaleString
-      const manausTimeStr = expirationDate.toLocaleString("sv-SE", {
-        timeZone: "America/Manaus",
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit'
-      });
+      // Criar data legível para logs (mantém formato legível mas usa timestamp interno)
+      const expirationDate = new Date(expirationTimestamp * 1000);
+      const year = expirationDate.getFullYear();
+      const month = String(expirationDate.getMonth() + 1).padStart(2, '0');
+      const day = String(expirationDate.getDate()).padStart(2, '0');
+      const hours = String(expirationDate.getHours()).padStart(2, '0');
+      const minutes = String(expirationDate.getMinutes()).padStart(2, '0');
+      const seconds = String(expirationDate.getSeconds()).padStart(2, '0');
       
-      // Formato já está correto: YYYY-MM-DD HH:MM:SS
-      const expirationStr = manausTimeStr.replace(',', '');
+      const expirationStr = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+      
+      console.log(`[IP-BINDING] Criando com expiração: ${expirationStr} (timestamp: ${expirationTimestamp})`);
 
-      // Criar comentário com formato simplificado
+      // Criar comentário com timestamp Unix para comparação precisa
       let finalComment = comment || '';
       if (expiration_minutes > 0) {
-        finalComment = finalComment ? `${finalComment} e:${expirationStr}` : `e:${expirationStr}`;
+        // Usar timestamp Unix no comentário para comparação precisa no scheduler
+        finalComment = finalComment ? `${finalComment} e:${expirationTimestamp}` : `e:${expirationTimestamp}`;
       }
 
       // Criar objeto do IP binding do hotspot
@@ -579,16 +579,11 @@ router.post('/create-global-cleanup-scheduler/:mikrotikId',
         });
       }
 
-      // Criar scheduler global de limpeza com logs detalhados
+      // Script usando timestamp Unix simples para comparação timezone-agnostic
       const cleanupScript = `
-        # Obter horario atual do sistema
-        :local now [/system clock get time];
-        :local today [/system clock get date];
-        :local currentDateTime "$today $now";
-        
-        :log info "[MIKROPIX-CLEANUP] === INICIO DA VERIFICACAO ===";
-        :log info "[MIKROPIX-CLEANUP] Horario atual do MikroTik: $currentDateTime";
-        :log info "[MIKROPIX-CLEANUP] Timezone: [/system clock get time-zone-name]";
+        :local currentTimestamp [:totime "1970-01-01 00:00:00"];
+        :set currentTimestamp ($currentTimestamp + [:totime [/system clock get date]] + [:totime [/system clock get time]]);
+        :log info "[MIKROPIX-CLEANUP] Timestamp atual: $currentTimestamp";
         
         :foreach binding in=[/ip hotspot ip-binding find] do={
           :local comment [/ip hotspot ip-binding get $binding comment];
@@ -599,56 +594,31 @@ router.post('/create-global-cleanup-scheduler/:mikrotikId',
             :local expiryStr [:pick $comment $expiryStart $expiryEnd];
             
             :do {
-              # Metodo mais simples - comparar strings de data diretamente
-              # Formato: YYYY-MM-DD HH:MM:SS vs YYYY-MM-DD HH:MM:SS
-              :local mac [/ip hotspot ip-binding get $binding mac-address];
-              
-              # Log de debug detalhado
-              :log info "[MIKROPIX-CLEANUP] Verificando MAC $mac:";
-              :log info "[MIKROPIX-CLEANUP]   Expira em: $expiryStr";
-              :log info "[MIKROPIX-CLEANUP]   Atual:     $currentDateTime";
-              
-              # Converter para timestamps numericos para comparacao precisa
-              :local currentTimestamp [:totime $currentDateTime];
-              :local expiryTimestamp [:totime $expiryStr];
-              
-              :log info "[MIKROPIX-CLEANUP]   Current TS: $currentTimestamp";
-              :log info "[MIKROPIX-CLEANUP]   Expiry TS:  $expiryTimestamp";
-              
-              # Adicionar margem de seguranca de 1 minuto (60 segundos)
-              :local safetyMargin 60;
-              :local adjustedCurrent ($currentTimestamp + $safetyMargin);
-              
-              :if ($adjustedCurrent > $expiryTimestamp) do={
+              :local expiryTimestamp [:tonum $expiryStr];
+              :if ($currentTimestamp > $expiryTimestamp) do={
                 :local address [/ip hotspot ip-binding get $binding address];
+                :local mac [/ip hotspot ip-binding get $binding mac-address];
                 /ip hotspot ip-binding remove $binding;
-                :if ([:len $address] > 0) do={
-                  :log warning "[MIKROPIX-CLEANUP] REMOVIDO: $address ($mac) - Expirou: $expiryStr";
-                } else={
-                  :log warning "[MIKROPIX-CLEANUP] REMOVIDO: MAC $mac - Expirou: $expiryStr";
-                }
+                :log info "[MIKROPIX-CLEANUP] IP binding removido: $address ($mac) - Expirado";
               } else={
-                :local remainingTime ($expiryTimestamp - $currentTimestamp);
-                :log info "[MIKROPIX-CLEANUP] VALIDO: MAC $mac - Restam $remainingTime segundos";
+                :local remaining ($expiryTimestamp - $currentTimestamp);
+                :log info "[MIKROPIX-CLEANUP] IP binding válido: $expiryStr (restam $remaining seg)";
               }
             } on-error={
-              :log error "[MIKROPIX-CLEANUP] ERRO ao processar: $comment";
-              :log error "[MIKROPIX-CLEANUP] Erro detalhes: $expiryStr";
+              :log warning "[MIKROPIX-CLEANUP] Erro ao processar: $comment";
             }
           }
         }
-        
-        :log info "[MIKROPIX-CLEANUP] === FIM DA VERIFICACAO ===";
       `;
 
       const schedulerData = {
         name: 'mikropix-ip-binding-cleanup',
         'start-time': 'startup',
-        interval: '2m',
+        interval: '2m',   // Executa a cada 2 minutos
         'on-event': cleanupScript.trim(),
         policy: 'read,write,policy,test',
         disabled: 'false',
-        comment: 'MIKROPIX - Remove IP bindings expirados automaticamente'
+        comment: 'MIKROPIX - Remove IP bindings expirados usando timestamp Unix'
       };
 
       // Criar o scheduler
