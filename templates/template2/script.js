@@ -798,20 +798,17 @@ function loginWithPassword() {
         apiUrl: apiUrl
     });
     
-    // Verificar voucher via API
-    fetch(apiUrl + '/api/payment/captive/check-user', {
+    // Verificar voucher via Proxy API (mais confiável)
+    const proxyUrl = state.mikrotikProxyUrl || CONFIG.MIKROTIK_PROXY_URL;
+    
+    fetch(proxyUrl + '/api/mikrotik/public/check-voucher/' + mikrotikId, {
         method: 'POST',
         headers: { 
             'Content-Type': 'application/json',
             'Accept': 'application/json'
         },
         body: JSON.stringify({
-            username: password,
-            password: password,
-            mikrotik_id: mikrotikId,
-            mac_address: state.mac,
-            ip_address: state.ip,
-            user_agent: navigator.userAgent
+            username: password
         })
     })
     .then(function(response) {
@@ -826,23 +823,28 @@ function loginWithPassword() {
     .then(function(result) {
         debugLog('📋 Dados da resposta:', result);
         
-        if (result.success) {
+        if (result.success && result.exists) {
             // Usuário verificado com sucesso
-            debugLog('✅ Voucher verificado com sucesso:', result.data);
+            debugLog('✅ Voucher verificado com sucesso:', result.user);
             
-            // Criar mensagem baseada no tipo de voucher
+            // Criar mensagem baseada no voucher
             var successMessage = '✅ Voucher válido!<br>';
-            if (result.data.plan_name) {
-                successMessage += '<span style="font-size: 0.9rem; opacity: 0.9;">Plano: ' + result.data.plan_name + '</span>';
+            if (result.user && result.user.profile) {
+                successMessage += '<span style="font-size: 0.9rem; opacity: 0.9;">Perfil: ' + result.user.profile + '</span>';
             }
             
-            // Se tem comentário (PIX voucher), mostrar valor
-            if (result.data.has_comment !== false && result.data.plan_value && result.data.plan_value > 0) {
-                successMessage += '<br><span style="font-size: 0.9rem; opacity: 0.9;">Valor: R$ ' + result.data.plan_value.toFixed(2) + '</span>';
-            } 
-            // Se não tem comentário (voucher físico), indicar
-            else if (result.data.has_comment === false) {
+            // Se tem comentário, mostrar informações
+            if (result.user && result.user.comment) {
+                // Comentário existe, pode ser PIX
+                successMessage += '<br><span style="font-size: 0.9rem; opacity: 0.9;">Voucher PIX</span>';
+            } else {
+                // Sem comentário, provavelmente voucher físico
                 successMessage += '<br><span style="font-size: 0.9rem; opacity: 0.9;">Voucher Físico</span>';
+            }
+            
+            // Verificar se já foi usado
+            if (result.user && result.user.uptime && result.user.uptime !== "00:00:00") {
+                successMessage += '<br><span style="font-size: 0.8rem; color: #fbbf24;">⚠️ Voucher já em uso: ' + result.user.uptime + '</span>';
             }
             
             // Atualizar texto na animação
@@ -858,31 +860,40 @@ function loginWithPassword() {
             }, 2500);
             
         } else {
-            // Erro na verificação
-            debugError('❌ Erro na verificação:', result);
-            var userMessage = result.message || 'Voucher não encontrado ou inválido';
-            updateVerificationText('❌ ' + userMessage);
+            // Erro na verificação - implementar fallback
+            debugError('❌ Voucher não encontrado via proxy API:', result);
+            updateVerificationText('⚠️ Voucher não encontrado via proxy<br><span style="font-size: 0.9rem; opacity: 0.9;">Tentando autenticação direta...</span>');
             
-            // Voltar para tela principal após erro
+            // Fallback: tentar login direto após 2 segundos
             setTimeout(function() {
-                window.isVerifying = false;
-                showWelcomeScreen();
-                clearOtpInputs();
-            }, 3000);
+                debugLog('🔄 Fallback: tentando login direto');
+                updateVerificationText('🚀 Tentando autenticação direta...');
+                setTimeout(function() {
+                    loginDirectly(password);
+                }, 1000);
+            }, 2000);
         }
     })
     .catch(function(error) {
-        debugError('❌ Erro na comunicação com API:', error);
-        updateVerificationText('⚠️ Erro de conexão<br><span style="font-size: 0.9rem; opacity: 0.9;">Tentando login direto...</span>');
+        debugError('❌ Erro na comunicação com Proxy API:', error);
         
-        // Em caso de erro de conexão, fazer login direto após delay
+        // Mostrar mensagem específica baseada no tipo de erro
+        if (error.message && error.message.includes('socket hang up')) {
+            updateVerificationText('⚠️ Timeout na verificação<br><span style="font-size: 0.9rem; opacity: 0.9;">Tentando autenticação direta...</span>');
+        } else if (error.message && error.message.includes('network')) {
+            updateVerificationText('⚠️ Erro de rede<br><span style="font-size: 0.9rem; opacity: 0.9;">Tentando autenticação direta...</span>');
+        } else {
+            updateVerificationText('⚠️ Erro de conexão<br><span style="font-size: 0.9rem; opacity: 0.9;">Tentando autenticação direta...</span>');
+        }
+        
+        // Em caso de erro de conexão, fazer login direto após delay mais curto
         setTimeout(function() {
-            debugLog('🔄 Fallback: fazendo login direto devido a erro de conexão');
-            updateVerificationText('🚀 Conectando...');
+            debugLog('🔄 Fallback: fazendo login direto devido a erro de conexão/timeout');
+            updateVerificationText('🚀 Autenticação direta...');
             setTimeout(function() {
                 loginDirectly(password);
-            }, 1000);
-        }, 2500);
+            }, 800);
+        }, 1500);
     });
 }
 
