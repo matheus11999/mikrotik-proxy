@@ -247,14 +247,14 @@ router.post('/create-ip-binding/:mikrotikId',
       const { mikrotikId } = req.params;
       const { address, mac_address, comment, expiration_minutes = 60 } = req.body;
 
-      logger.info(`[PUBLIC] Criando IP binding: ${address} -> ${mac_address} no MikroTik: ${mikrotikId}, expiração: ${expiration_minutes}min`);
+      logger.info(`[PUBLIC] Criando IP binding: ${address || 'dynamic'} -> ${mac_address} no MikroTik: ${mikrotikId}, expiração: ${expiration_minutes}min`);
 
-      // Validar campos obrigatórios
-      if (!address || !mac_address || !mikrotikId) {
+      // Validar campos obrigatórios (apenas MAC address é obrigatório)
+      if (!mac_address || !mikrotikId) {
         return res.status(400).json({
           success: false,
           error: 'Missing required fields',
-          message: 'address, mac_address and mikrotikId are required'
+          message: 'mac_address and mikrotikId are required'
         });
       }
 
@@ -309,10 +309,14 @@ router.post('/create-ip-binding/:mikrotikId',
 
       // Criar objeto do IP binding do hotspot
       const bindingData = {
-        address,
         'mac-address': mac_address,
         type: 'bypassed' // ou 'blocked' - bypassed permite acesso sem login
       };
+      
+      // Adicionar address apenas se fornecido
+      if (address) {
+        bindingData.address = address;
+      }
 
       // Adicionar comentário com expiração
       if (finalComment) {
@@ -404,6 +408,112 @@ router.post('/create-ip-binding/:mikrotikId',
     } catch (error) {
       const responseTime = Date.now() - startTime;
       logger.error('[PUBLIC] Erro ao criar IP binding:', error);
+
+      res.status(500).json({
+        success: false,
+        error: 'Erro interno do servidor',
+        code: 'INTERNAL_ERROR',
+        responseTime
+      });
+    }
+  }
+);
+
+// Rota pública para atualizar comentário de usuário hotspot (sem autenticação)
+router.put('/update-hotspot-user/:mikrotikId',
+  publicRateLimit,
+  async (req, res) => {
+    const startTime = Date.now();
+    
+    try {
+      const { mikrotikId } = req.params;
+      const { username, comment } = req.body;
+
+      logger.info(`[PUBLIC] Atualizando comentário do usuário: ${username} no MikroTik: ${mikrotikId}`);
+
+      // Validar campos obrigatórios
+      if (!username || comment === undefined) {
+        return res.status(400).json({
+          success: false,
+          error: 'Missing required fields',
+          message: 'username and comment are required'
+        });
+      }
+
+      // Buscar dados do MikroTik
+      const { data: mikrotik, error: mikrotikError } = await supabaseService.supabase
+        .from('mikrotiks')
+        .select('id, ip, username, password, port, ativo')
+        .eq('id', mikrotikId)
+        .eq('ativo', true)
+        .single();
+
+      if (mikrotikError || !mikrotik) {
+        return res.status(404).json({
+          success: false,
+          error: 'MikroTik not found',
+          message: 'The specified MikroTik was not found or is not active'
+        });
+      }
+
+      const mikrotikConfig = {
+        ip: mikrotik.ip,
+        username: mikrotik.username,
+        password: mikrotik.password,
+        port: mikrotik.port || 8728
+      };
+
+      // Buscar usuário hotspot
+      const userResult = await mikrotikService.makeRequest(
+        mikrotikConfig,
+        `/ip/hotspot/user?name=${encodeURIComponent(username)}`,
+        'GET'
+      );
+
+      if (!userResult.success || !userResult.data || userResult.data.length === 0) {
+        return res.status(404).json({
+          success: false,
+          error: 'User not found',
+          message: 'Hotspot user not found'
+        });
+      }
+
+      const user = userResult.data[0];
+      const userId = user['.id'];
+
+      // Atualizar comentário do usuário
+      const updateResult = await mikrotikService.makeRequest(
+        mikrotikConfig,
+        `/ip/hotspot/user/${userId}`,
+        'PATCH',
+        { comment }
+      );
+
+      if (!updateResult.success) {
+        return res.status(500).json({
+          success: false,
+          error: 'Failed to update user',
+          message: updateResult.error || 'Unknown error'
+        });
+      }
+
+      const responseTime = Date.now() - startTime;
+      logger.info(`[PUBLIC] Comentário atualizado com sucesso para usuário: ${username}`);
+
+      res.json({
+        success: true,
+        message: 'User comment updated successfully',
+        user: {
+          username,
+          comment,
+          updated_at: new Date().toISOString()
+        },
+        responseTime
+      });
+
+    } catch (error) {
+      const responseTime = Date.now() - startTime;
+      logger.error('[PUBLIC] Erro ao atualizar comentário do usuário:', error);
 
       res.status(500).json({
         success: false,

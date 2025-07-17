@@ -259,7 +259,11 @@ router.post('/:mikrotikId/setup-cleanup-scheduler',
       const cleanupScript = `
         :local now [/system clock get time];
         :local today [/system clock get date];
-        :local currentTimestamp [:totime ("$today $now")];
+        :local currentDate [:tostr $today];
+        :local currentTime [:tostr $now];
+        :local currentDateTime "$currentDate $currentTime";
+        
+        :log info "[MIKROPIX-CLEANUP] Iniciando verificacao de expiracao - Horario atual: $currentDateTime";
         
         :foreach binding in=[/ip hotspot ip-binding find] do={
           :local comment [/ip hotspot ip-binding get $binding comment];
@@ -270,18 +274,40 @@ router.post('/:mikrotikId/setup-cleanup-scheduler',
             :local expiryStr [:pick $comment $expiryStart $expiryEnd];
             
             :do {
-              :local expiryTimestamp [:totime $expiryStr];
+              # Extrair data e hora da expiracao (formato: YYYY-MM-DD HH:MM:SS)
+              :local expiryDate [:pick $expiryStr 0 10];
+              :local expiryTime [:pick $expiryStr 11 19];
+              
+              # Converter datas para formato MM/DD/YYYY para comparacao
+              :local expDay [:pick $expiryDate 8 10];
+              :local expMonth [:pick $expiryDate 5 7];
+              :local expYear [:pick $expiryDate 0 4];
+              :local expiryDateFormatted "$expMonth/$expDay/$expYear";
+              
+              :local currDay [:pick $currentDate 8 10];
+              :local currMonth [:pick $currentDate 5 7];
+              :local currYear [:pick $currentDate 0 4];
+              :local currentDateFormatted "$currMonth/$currDay/$currYear";
+              
+              # Criar timestamps para comparacao
+              :local currentTimestamp [:totime ("$currentDateFormatted $currentTime")];
+              :local expiryTimestamp [:totime ("$expiryDateFormatted $expiryTime")];
+              
               :if ($currentTimestamp > $expiryTimestamp) do={
                 :local address [/ip hotspot ip-binding get $binding address];
                 :local mac [/ip hotspot ip-binding get $binding mac-address];
                 /ip hotspot ip-binding remove $binding;
-                :log info "[MIKROPIX-CLEANUP] IP binding expirado removido: $address ($mac)";
+                :log info "[MIKROPIX-CLEANUP] IP binding expirado removido: $address ($mac) - Expirou em: $expiryStr";
+              } else={
+                :log debug "[MIKROPIX-CLEANUP] IP binding ainda valido: $expiryStr (atual: $currentDateTime)";
               }
             } on-error={
-              :log warning "[MIKROPIX-CLEANUP] Erro ao processar expiracao: $comment";
+              :log warning "[MIKROPIX-CLEANUP] Erro ao processar expiracao: $comment - $expiryStr";
             }
           }
         }
+        
+        :log info "[MIKROPIX-CLEANUP] Verificacao de expiracao concluida";
       `;
 
       const schedulerData = {
