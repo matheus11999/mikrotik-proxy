@@ -33,6 +33,26 @@ function debugError(...args) {
     }
 }
 
+// Initialize PIX button visibility based on ENABLE_PIX_SALES variable
+function initializePixButton() {
+    const pixButton = document.getElementById('showPlansBtn');
+    const enablePixSales = '{{ENABLE_PIX_SALES}}';
+    
+    debugLog('🔧 Initializing PIX button visibility. ENABLE_PIX_SALES:', enablePixSales);
+    
+    if (pixButton) {
+        if (enablePixSales === 'true') {
+            pixButton.style.display = 'block';
+            debugLog('✅ PIX button enabled - showing button');
+        } else {
+            pixButton.style.display = 'none';
+            debugLog('❌ PIX button disabled - hiding button');
+        }
+    } else {
+        debugLog('⚠️ PIX button not found in DOM');
+    }
+}
+
 // Global state
 const state = {
     mac: null,
@@ -318,6 +338,9 @@ function initializeApp() {
         }
         debugLog('🔧 Debug info adicionado à tela de boas-vindas');
     }
+    
+    // Initialize PIX button visibility
+    initializePixButton();
     
     // Setup event listeners
     setupEventListeners();
@@ -894,7 +917,7 @@ function loginWithPassword() {
                 debugMessage = `${result.debug.totalUsers} usuários no MikroTik. Tentando direta...`;
             }
             
-            updateVerificationText(`⚠️ Senha não encontrada via proxy<br><span style="font-size: 0.9rem; opacity: 0.9;">${debugMessage}</span>`);
+            updateVerificationText('🚀 Tentando conexão direta...');
             
             // Fallback: tentar login direto após 2 segundos
             setTimeout(function() {

@@ -131,6 +131,13 @@ class TemplatesService {
               { value: 'false', label: 'Desativado' }
             ],
             placeholder: 'false'
+          },
+          {
+            key: 'ENABLE_PIX_SALES',
+            label: 'Aceitar vendas via PIX',
+            type: 'checkbox',
+            required: false,
+            placeholder: 'true'
           }
         ]
       }
