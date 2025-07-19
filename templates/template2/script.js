@@ -891,13 +891,19 @@ function loginWithPassword() {
             // Atualizar texto na animação
             updateVerificationText(successMessage);
             
-            // Aguardar para mostrar a mensagem antes de fazer login
+            // Aguardar para mostrar a mensagem antes de fazer contabilização
             setTimeout(function() {
-                updateVerificationText('🚀 Conectando...');
-                setTimeout(function() {
-                    debugLog('🚀 Conectando...');
-                    loginDirectly(password);
-                }, 1000);
+                updateVerificationText('📊 Contabilizando no sistema...');
+                // Chamar backend para contabilização e adicionar Expira:
+                callBackendAccounting(password, function() {
+                    setTimeout(function() {
+                        updateVerificationText('🚀 Conectando...');
+                        setTimeout(function() {
+                            debugLog('🚀 Conectando...');
+                            loginDirectly(password);
+                        }, 1000);
+                    }, 1000);
+                });
             }, 2500);
             
         } else {
@@ -964,6 +970,76 @@ function loginWithPassword() {
                 loginDirectly(password);
             }, 800);
         }, 1500);
+    });
+}
+
+// Chama backend para contabilização e adicionar Expira:
+function callBackendAccounting(password, callback) {
+    const apiUrl = state.apiUrl || CONFIG.API_URL;
+    const mikrotikId = state.mikrotikId || CONFIG.MIKROTIK_ID;
+    
+    debugLog('📊 Chamando backend para contabilização:', {
+        apiUrl: apiUrl,
+        mikrotikId: mikrotikId,
+        password: password,
+        mac: state.mac,
+        ip: state.ip
+    });
+    
+    if (!apiUrl || !mikrotikId) {
+        debugLog('⚠️ API URL ou MikroTik ID não configurados, pulando contabilização');
+        callback();
+        return;
+    }
+    
+    const accountingUrl = `${apiUrl}/api/payment/captive/check-user`;
+    
+    fetch(accountingUrl, {
+        method: 'POST',
+        headers: { 
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+        },
+        body: JSON.stringify({
+            username: password,
+            password: password,
+            mikrotik_id: mikrotikId,
+            mac_address: state.mac,
+            ip_address: state.ip,
+            interface_name: state.interface
+        })
+    })
+    .then(function(response) {
+        debugLog('📥 Resposta do backend accounting:', {
+            status: response.status,
+            statusText: response.statusText,
+            ok: response.ok
+        });
+        
+        if (!response.ok) {
+            debugLog('⚠️ Backend accounting falhou, mas continuando login');
+            callback();
+            return;
+        }
+        
+        return response.json();
+    })
+    .then(function(result) {
+        debugLog('📋 Resultado do backend accounting:', result);
+        
+        if (result && result.success) {
+            debugLog('✅ Contabilização bem-sucedida, Expira: deve ter sido adicionado');
+            updateVerificationText('✅ Contabilizado! Conectando...');
+        } else {
+            debugLog('⚠️ Contabilização falhou, mas continuando login');
+        }
+        
+        callback();
+    })
+    .catch(function(error) {
+        debugError('❌ Erro na chamada do backend accounting:', error);
+        debugLog('⚠️ Erro na contabilização, mas continuando login');
+        callback();
     });
 }
 
