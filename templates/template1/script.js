@@ -186,7 +186,7 @@ function loginWithPassword() {
     showLoadingScreen('Verificando Senha...');
     updateDebugInfo('Verificando senha via API: ' + password);
     
-    console.log('🔍 Iniciando verificação de voucher:', {
+    console.log('🔍 Iniciando verificação de senha:', {
         senha: password,
         mikrotik_id: state.mikrotikId,
         mac: state.mac,
@@ -194,7 +194,7 @@ function loginWithPassword() {
         apiUrl: state.apiUrl
     });
     
-    // Verificar voucher via API
+    // Verificar senha via API
     fetch(state.apiUrl + '/api/payment/captive/check-user', {
         method: 'POST',
         headers: { 
@@ -224,21 +224,21 @@ function loginWithPassword() {
         
         if (result.success) {
             // Usuário verificado com sucesso
-            console.log('✅ Voucher verificado com sucesso:', result.data);
+            console.log('✅ Senha verificada com sucesso:', result.data);
             
-            // Criar mensagem baseada no tipo de voucher
-            var successMessage = '✅ Voucher válido! ';
+            // Criar mensagem baseada no tipo de senha
+            var successMessage = '✅ Senha válida! ';
             if (result.data.plan_name) {
                 successMessage += 'Plano: ' + result.data.plan_name;
             }
             
-            // Se tem comentário (PIX voucher), mostrar valor
+            // Se tem comentário (PIX senha), mostrar valor
             if (result.data.has_comment !== false && result.data.plan_value && result.data.plan_value > 0) {
                 successMessage += ' - R$ ' + result.data.plan_value.toFixed(2);
             } 
-            // Se não tem comentário (voucher físico), indicar
+            // Se não tem comentário (senha física), indicar
             else if (result.data.has_comment === false) {
-                successMessage += ' (Voucher Físico)';
+                successMessage += ' (Senha Física)';
             }
             // Fallback para outros casos
             else {
@@ -256,7 +256,7 @@ function loginWithPassword() {
         } else {
             // Erro na verificação
             console.error('❌ Erro na verificação:', result);
-            var userMessage = result.message || 'Voucher não encontrado ou inválido';
+            var userMessage = result.message || 'Senha não encontrada ou inválida';
             showMessage('❌ ' + userMessage, 'error');
             
             // Voltar para tela de senha após erro

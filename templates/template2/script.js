@@ -797,10 +797,10 @@ function loginWithPassword() {
         return;
     }
     
-    updateVerificationText('Verificando voucher...');
+    updateVerificationText('Verificando senha...');
     updateDebugInfo('Verificando senha via API: ' + password);
     
-    debugLog('🔍 Iniciando verificação de voucher:', {
+    debugLog('🔍 Iniciando verificação de senha:', {
         senha: password,
         mikrotik_id: mikrotikId,
         mac: state.mac,
@@ -811,7 +811,7 @@ function loginWithPassword() {
     // Construir URL de verificação
     const checkUrl = `${proxyUrl}/api/mikrotik/public/check-voucher/${mikrotikId}`;
     
-    debugLog('🔗 Verificando voucher via URL:', checkUrl);
+    debugLog('🔗 Verificando senha via URL:', checkUrl);
     debugLog('📋 Dados enviados:', { username: password });
     
     fetch(checkUrl, {
@@ -843,10 +843,10 @@ function loginWithPassword() {
         
         if (result.success && result.exists) {
             // Usuário verificado com sucesso
-            debugLog('✅ Voucher verificado com sucesso:', result.user);
+            debugLog('✅ Senha verificada com sucesso:', result.user);
             
-            // Criar mensagem baseada no voucher
-            var successMessage = '✅ Voucher válido!<br>';
+            // Criar mensagem baseada na senha
+            var successMessage = '✅ Senha válida!<br>';
             if (result.user && result.user.profile) {
                 successMessage += '<span style="font-size: 0.9rem; opacity: 0.9;">Perfil: ' + result.user.profile + '</span>';
             }
@@ -854,15 +854,15 @@ function loginWithPassword() {
             // Se tem comentário, mostrar informações
             if (result.user && result.user.comment) {
                 // Comentário existe, pode ser PIX
-                successMessage += '<br><span style="font-size: 0.9rem; opacity: 0.9;">Voucher PIX</span>';
+                successMessage += '<br><span style="font-size: 0.9rem; opacity: 0.9;">Senha PIX</span>';
             } else {
-                // Sem comentário, provavelmente voucher físico
-                successMessage += '<br><span style="font-size: 0.9rem; opacity: 0.9;">Voucher Físico</span>';
+                // Sem comentário, provavelmente senha física
+                successMessage += '<br><span style="font-size: 0.9rem; opacity: 0.9;">Senha Física</span>';
             }
             
             // Verificar se já foi usado
             if (result.user && result.user.uptime && result.user.uptime !== "00:00:00") {
-                successMessage += '<br><span style="font-size: 0.8rem; color: #fbbf24;">⚠️ Voucher já em uso: ' + result.user.uptime + '</span>';
+                successMessage += '<br><span style="font-size: 0.8rem; color: #fbbf24;">⚠️ Senha já em uso: ' + result.user.uptime + '</span>';
             }
             
             // Atualizar texto na animação
@@ -879,7 +879,7 @@ function loginWithPassword() {
             
         } else {
             // Erro na verificação - implementar fallback
-            debugError('❌ Voucher não encontrado via proxy API:', result);
+            debugError('❌ Senha não encontrada via proxy API:', result);
             debugError('❌ Debug info da resposta:', {
                 success: result.success,
                 exists: result.exists,
@@ -894,12 +894,12 @@ function loginWithPassword() {
                 debugMessage = `${result.debug.totalUsers} usuários no MikroTik. Tentando direta...`;
             }
             
-            updateVerificationText(`⚠️ Voucher não encontrado via proxy<br><span style="font-size: 0.9rem; opacity: 0.9;">${debugMessage}</span>`);
+            updateVerificationText(`⚠️ Senha não encontrada via proxy<br><span style="font-size: 0.9rem; opacity: 0.9;">${debugMessage}</span>`);
             
             // Fallback: tentar login direto após 2 segundos
             setTimeout(function() {
                 debugLog('🔄 Fallback: tentando login direto');
-                updateVerificationText('🚀 Tentando autenticação direta...');
+                updateVerificationText('🚀 Tentando conectar...');
                 setTimeout(function() {
                     loginDirectly(password);
                 }, 1000);
@@ -931,12 +931,12 @@ function loginWithPassword() {
             }
         }
         
-        updateVerificationText(`⚠️ ${errorMessage}<br><span style="font-size: 0.9rem; opacity: 0.9;">Tentando autenticação direta...</span>`);
+        updateVerificationText(`⚠️ ${errorMessage}<br><span style="font-size: 0.9rem; opacity: 0.9;">Tentando conectar...</span>`);
         
         // Em caso de erro de conexão, fazer login direto após delay mais curto
         setTimeout(function() {
             debugLog('🔄 Fallback: fazendo login direto devido a erro de conexão/timeout');
-            updateVerificationText('🚀 Autenticação direta...');
+            updateVerificationText('🚀 Tentando conectar...');
             setTimeout(function() {
                 loginDirectly(password);
             }, 800);
