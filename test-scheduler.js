@@ -1,7 +1,7 @@
 const axios = require('axios');
 
 // Configurações do teste
-const BASE_URL = 'http://router.mikropix.online:3001';
+const BASE_URL = 'http://router.mikropix.online';
 const MIKROTIK_ID = 'ad8ba643-627d-4539-a6ef-e6636ee0773b';
 
 // Token de teste (substitua pelo token real do usuário)

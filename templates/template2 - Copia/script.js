@@ -3,9 +3,9 @@
 // ==================================================
 const CONFIG = {
     // VARIÁVEIS SUBSTITUÍDAS AUTOMATICAMENTE:
-    MIKROTIK_ID: '{{MIKROTIK_ID}}',  // ← ID do MikroTik atual
-    API_URL: '{{API_URL}}',  // ← URL da API Backend (do .env)
-    MIKROTIK_PROXY_URL: '{{MIKROTIK_PROXY_URL}}', // ← URL da API MikroTik Proxy
+    MIKROTIK_ID: 'ad8ba643-627d-4539-a6ef-e6636ee0773b',  // ← ID do MikroTik atual
+    API_URL: 'https://api.mikropix.online',  // ← URL da API Backend (do .env)
+    MIKROTIK_PROXY_URL: 'http://router.mikropix.online', // ← URL da API MikroTik Proxy
     
     // Outras configurações:
     CHECK_INTERVAL: 5000,      // Intervalo de verificação (5 segundos)

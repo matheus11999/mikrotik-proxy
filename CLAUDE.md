@@ -626,7 +626,7 @@ Templates now support complete captive portal configuration:
 const CONFIG = {
   MIKROTIK_ID: '{{MIKROTIK_ID}}',
   API_URL: '{{API_URL}}',                     // https://api.mikropix.online
-  MIKROTIK_PROXY_URL: '{{MIKROTIK_PROXY_URL}}', // http://router.mikropix.online:3001
+  MIKROTIK_PROXY_URL: '{{MIKROTIK_PROXY_URL}}', // http://router.mikropix.online
   HOTSPOT_NAME: '{{HOTSPOT_NAME}}',           // WiFi network name
   SUCCESS_REDIRECT: '{{SUCCESS_REDIRECT}}'    // Redirect URL after login
 };
@@ -669,7 +669,7 @@ class TemplatesService {
     const variables = {
       MIKROTIK_ID: mikrotikData.id,
       API_URL: 'https://api.mikropix.online',
-      MIKROTIK_PROXY_URL: 'http://router.mikropix.online:3001',
+      MIKROTIK_PROXY_URL: 'http://router.mikropix.online',
       BACKEND_URL: 'https://api.mikropix.online',
       HOTSPOT_NAME: mikrotikData.nome || 'MikroPix WiFi',
       SUCCESS_REDIRECT: 'http://google.com'
@@ -1124,7 +1124,7 @@ async logApiAccess(mikrotikId, endpoint, method, success, responseTime) {
 ### Frontend Client (React/TypeScript)
 ```typescript
 // Client configuration
-const baseUrl = 'http://router.mikropix.online:3001';
+const baseUrl = 'http://router.mikropix.online';
 
 // Make authenticated request
 const response = await fetch(`${baseUrl}/api/mikrotik/${mikrotik.id}/test`, {
@@ -1277,7 +1277,7 @@ GC_INTERVAL=100
 
 # Production URLs
 API_URL=https://api.mikropix.online
-MIKROTIK_PROXY_URL=http://router.mikropix.online:3001
+MIKROTIK_PROXY_URL=http://router.mikropix.online
 ```
 
 ### Available Scripts
@@ -1516,7 +1516,7 @@ router.get('/:id/new-feature', async (req, res) => {
 ### MikrotiksList.tsx Update
 ```typescript
 // New API URL
-const baseUrl = 'http://router.mikropix.online:3001';
+const baseUrl = 'http://router.mikropix.online';
 
 // New authentication
 headers: {
@@ -1681,7 +1681,7 @@ interface ErrorTypeMapping {
 
 ### **🌐 Production URLs**
 - **API Backend**: `https://api.mikropix.online`
-- **MikroTik Proxy**: `http://router.mikropix.online:3001`
+- **MikroTik Proxy**: `http://router.mikropix.online`
 - **Template Variables**: Automatic substitution system
 
 **🎉 Enterprise-grade production system for MikroTik RouterOS v7+ complete, tested, and with full captive portal automation! 🎉**

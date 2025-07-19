@@ -45,7 +45,7 @@ class TemplatesService {
       template1: {
         name: 'Template 1',
         description: 'Template simples e limpo para hotspot',
-        preview: `${process.env.PROXY_BASE_URL || 'http://router.mikropix.online:3001'}/api/mikrotik/templates/template1/preview`,
+        preview: `${process.env.PROXY_BASE_URL || 'http://router.mikropix.online'}/api/mikrotik/templates/template1/preview`,
         variables: [
           {
             key: 'PRIMARY_COLOR',
@@ -91,7 +91,7 @@ class TemplatesService {
       template2: {
         name: 'Template 2',
         description: 'Template otimizado para dispositivos móveis',
-        preview: `${process.env.PROXY_BASE_URL || 'http://router.mikropix.online:3001'}/api/mikrotik/templates/template2/preview`,
+        preview: `${process.env.PROXY_BASE_URL || 'http://router.mikropix.online'}/api/mikrotik/templates/template2/preview`,
         variables: [
           {
             key: 'PROVIDER_NAME',
@@ -141,9 +141,12 @@ class TemplatesService {
 
   // Obter todos os arquivos de um template recursivamente
   getTemplateFiles(templateId) {
+    logger.info(`[TEMPLATES] Getting template files for: ${templateId}`);
     const templatePath = path.join(this.templatesPath, templateId);
+    logger.info(`[TEMPLATES] Template path: ${templatePath}`);
     
     if (!fs.existsSync(templatePath)) {
+      logger.error(`[TEMPLATES] Template path does not exist: ${templatePath}`);
       throw new Error(`Template ${templateId} não encontrado`);
     }
 
@@ -196,7 +199,7 @@ class TemplatesService {
       const systemVariables = {
         'MIKROTIK_ID': mikrotikId || '',
         'API_URL': 'https://api.mikropix.online',
-        'MIKROTIK_PROXY_URL': 'http://router.mikropix.online:3001',
+        'MIKROTIK_PROXY_URL': 'http://router.mikropix.online',
         'BACKEND_URL': 'https://api.mikropix.online',
         'HOTSPOT_NAME': 'MikroPix WiFi',
         'SUCCESS_REDIRECT': 'http://google.com',
@@ -313,6 +316,7 @@ class TemplatesService {
   async applyTemplate(mikrotikId, templateId, serverProfileId, variables = {}, userId = null) {
     try {
       logger.info(`[TEMPLATES] Aplicando template ${templateId} ao MikroTik ${mikrotikId}`);
+      logger.info(`[TEMPLATES] Template config check:`, this.getTemplateConfig(templateId) ? 'EXISTS' : 'NOT_FOUND');
 
       // Obter configuração do MikroTik
       const mikrotikConfig = await supabaseService.getMikrotikCredentials(mikrotikId);
@@ -344,7 +348,7 @@ class TemplatesService {
         // Obter arquivos do template
         const templateFiles = this.getTemplateFiles(templateId);
         
-        const baseURL = process.env.PROXY_BASE_URL || 'http://router.mikropix.online:3001';
+        const baseURL = process.env.PROXY_BASE_URL || 'http://router.mikropix.online';
         const results = [];
 
         // Criar diretório /flash/mikropix2/ se não existir

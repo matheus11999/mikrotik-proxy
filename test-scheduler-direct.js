@@ -1,7 +1,7 @@
 const axios = require('axios');
 
 // Configurações do teste
-const BASE_URL = 'http://router.mikropix.online:3001';
+const BASE_URL = 'http://router.mikropix.online';
 const MIKROTIK_ID = 'ad8ba643-627d-4539-a6ef-e6636ee0773b';
 const TEST_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJhdXRoZW50aWNhdGVkIiwiZXhwIjoxNzM3MTM5NzM3LCJpYXQiOjE3MzcxMzYxMzcsInN1YiI6IjQwMzY3NGI2LWI3NzItNDdiZC1iNGNkLWZkNzU5YjNkMDY4NiIsImVtYWlsIjoiaG9zdHBpeEBnbWFpbC5jb20iLCJwaG9uZSI6IiIsImFwcF9tZXRhZGF0YSI6eyJwcm92aWRlciI6ImVtYWlsIiwicHJvdmlkZXJzIjpbImVtYWlsIl19LCJ1c2VyX21ldGFkYXRhIjp7fSwicm9sZSI6ImF1dGhlbnRpY2F0ZWQiLCJhYWwiOiJhYWwxIiwiYW1yIjpbeyJtZXRob2QiOiJwYXNzd29yZCIsInRpbWVzdGFtcCI6MTczNzEzNjEzN31dLCJzZXNzaW9uX2lkIjoiMzk0NzNiNTUtNzk1My00ZjE3LTk3NjEtNGM0NDc2ZTE1Y2YzIiwiaXNfYW5vbnltb3VzIjpmYWxzZX0.qiXZYZJdyHPNQkdVUfWayGz5wkIEWYj6NzAHLKwQN0s';
 
