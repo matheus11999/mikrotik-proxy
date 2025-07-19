@@ -7,6 +7,8 @@ const supabaseService = require('./supabaseService');
 class TemplatesService {
   constructor() {
     this.templatesPath = path.join(__dirname, '../templates');
+    // Cache para armazenar as variáveis aplicadas por MikroTik
+    this.appliedVariables = new Map();
   }
 
   // Obter lista de templates disponíveis
@@ -235,7 +237,8 @@ class TemplatesService {
           const regex = new RegExp(`{{${variable.key}}}`, 'g');
           const userValue = variables && variables[variable.key];
           
-          if (!userValue && variable.placeholder) {
+          // Se não tem valor do usuário, usar placeholder
+          if ((userValue === undefined || userValue === null || userValue === '') && variable.placeholder) {
             let defaultValue = variable.placeholder;
             
             // Para tipo select, usar o primeiro valor das opções
@@ -319,11 +322,62 @@ class TemplatesService {
     }
   }
 
+  // Salvar variáveis aplicadas para uso posterior
+  saveAppliedVariables(mikrotikId, templateId, variables) {
+    const key = `${mikrotikId}-${templateId}`;
+    
+    // Merge com valores padrão
+    const templateConfig = this.getTemplateConfig(templateId);
+    const finalVariables = {};
+    
+    if (templateConfig && templateConfig.variables) {
+      templateConfig.variables.forEach(variable => {
+        // Usar valor fornecido pelo usuário ou placeholder
+        finalVariables[variable.key] = variables[variable.key] || variable.placeholder || '';
+      });
+    }
+    
+    this.appliedVariables.set(key, {
+      templateId,
+      variables: finalVariables,
+      timestamp: Date.now()
+    });
+    
+    logger.info(`[TEMPLATES] Variáveis salvas para ${key}:`, finalVariables);
+    return finalVariables;
+  }
+
+  // Obter variáveis aplicadas
+  getAppliedVariables(mikrotikId, templateId) {
+    const key = `${mikrotikId}-${templateId}`;
+    const cached = this.appliedVariables.get(key);
+    
+    if (cached) {
+      return cached.variables;
+    }
+    
+    // Fallback para valores padrão
+    const templateConfig = this.getTemplateConfig(templateId);
+    const defaultVariables = {};
+    
+    if (templateConfig && templateConfig.variables) {
+      templateConfig.variables.forEach(variable => {
+        defaultVariables[variable.key] = variable.placeholder || '';
+      });
+    }
+    
+    return defaultVariables;
+  }
+
   // Aplicar template usando node-routeros
   async applyTemplate(mikrotikId, templateId, serverProfileId, variables = {}, userId = null) {
     try {
       logger.info(`[TEMPLATES] Aplicando template ${templateId} ao MikroTik ${mikrotikId}`);
       logger.info(`[TEMPLATES] Template config check:`, this.getTemplateConfig(templateId) ? 'EXISTS' : 'NOT_FOUND');
+      logger.info(`[TEMPLATES] Variáveis recebidas:`, variables);
+      
+      // Salvar variáveis para uso posterior
+      const finalVariables = this.saveAppliedVariables(mikrotikId, templateId, variables);
 
       // Obter configuração do MikroTik
       const mikrotikConfig = await supabaseService.getMikrotikCredentials(mikrotikId);

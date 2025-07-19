@@ -54,13 +54,11 @@ router.get('/templates/:templateId/files/:mikrotikId/:filename', async (req, res
   try {
     const { templateId, mikrotikId, filename } = req.params;
     
-    // Usar variáveis padrão (sem parâmetros na URL)
-    const variables = {
-      'PRIMARY_COLOR': '#3b82f6',
-      'DEBUG_MODE': 'false'
-    };
+    // Obter variáveis aplicadas para este MikroTik e template
+    const variables = templatesService.getAppliedVariables(mikrotikId, templateId);
     
-    logger.info(`[TEMPLATES] 🔥 FETCH REQUEST (sem parâmetros) - Servindo arquivo ${filename} do template ${templateId} para MikroTik ${mikrotikId}`);
+    logger.info(`[TEMPLATES] 🔥 FETCH REQUEST - Servindo arquivo ${filename} do template ${templateId} para MikroTik ${mikrotikId}`);
+    logger.info(`[TEMPLATES] 🔧 Variáveis aplicadas:`, variables);
     
     const result = templatesService.serveTemplateFile(templateId, filename, variables, mikrotikId);
     
