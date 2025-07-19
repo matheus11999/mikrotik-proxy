@@ -174,7 +174,7 @@ function setupOtpAutoAdvance(){
             });
             
             input.addEventListener('focus', function() {
-                this.style.borderColor = '#3b82f6';
+                this.style.borderColor = 'var(--primary-color)';
             });
             
             input.addEventListener('blur', function() {
@@ -322,8 +322,8 @@ function initializeApp() {
     if (state.debug) {
         const debugInfo = document.createElement('div');
         debugInfo.innerHTML = `
-            <div style="margin-top: 20px; padding: 15px; background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 12px; font-size: 11px; color: #f1f5f9; font-family: monospace;">
-                <strong style="color: #3b82f6;">🔧 DEBUG MODE</strong><br>
+            <div style="margin-top: 20px; padding: 15px; background: color-mix(in srgb, var(--primary-color) 10%, transparent); border: 1px solid color-mix(in srgb, var(--primary-color) 30%, transparent); border-radius: 12px; font-size: 11px; color: #f1f5f9; font-family: monospace;">
+                <strong style="color: var(--primary-color);">🔧 DEBUG MODE</strong><br>
                 <span style="opacity: 0.8;">Backend API: ${state.apiUrl}</span><br>
                 <span style="opacity: 0.8;">MikroTik Proxy: ${state.mikrotikProxyUrl}</span><br>
                 <span style="opacity: 0.8;">MikroTik ID: ${state.mikrotikId}</span><br>
@@ -605,7 +605,7 @@ function updateDebugInfo(info) {
     if (debugDiv) {
         debugDiv.style.display = 'block';
         debugDiv.innerHTML = `
-            <strong style="color: #3b82f6;">🔧 DEBUG:</strong> ${info}<br>
+            <strong style="color: var(--primary-color);">🔧 DEBUG:</strong> ${info}<br>
             <span style="opacity: 0.8;">MAC: ${state.mac || 'N/A'}</span><br>
             <span style="opacity: 0.8;">IP: ${state.ip || 'N/A'}</span><br>
             <span style="opacity: 0.8;">MikroTik ID: ${state.mikrotikId || 'N/A'}</span><br>
@@ -1137,7 +1137,7 @@ function displayPlans(plans) {
         `;
         
         if (isPopular) {
-            planCard.style.borderColor = 'var(--primary)';
+            planCard.style.borderColor = 'var(--primary-color)';
             planCard.style.transform = 'scale(1.05)';
         }
         

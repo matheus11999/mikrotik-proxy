@@ -42,7 +42,7 @@ body {
     left: 0;
     width: 100%;
     height: 4px;
-    background: linear-gradient(90deg, #3b82f6, #06b6d4);
+    background: linear-gradient(90deg, var(--primary-color), #06b6d4);
     border-radius: 20px 20px 0 0;
 }
 
@@ -67,7 +67,7 @@ body {
 .logo {
     width: 100px;
     height: 100px;
-    background: linear-gradient(135deg, #3b82f6, #06b6d4);
+    background: linear-gradient(135deg, var(--primary-color), #06b6d4);
     border-radius: 28px;
     margin: 0 auto 2rem;
     display: flex;
@@ -177,7 +177,7 @@ body {
 
 .form-control:focus {
     outline: none;
-    border-color: #3b82f6;
+    border-color: var(--primary-color);
     box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
     transform: translateY(-2px);
 }
@@ -213,7 +213,7 @@ body {
 }
 
 .otp:focus {
-    border-color: #3b82f6;
+    border-color: var(--primary-color);
     box-shadow: 
         0 0 0 4px rgba(59, 130, 246, 0.15),
         0 8px 16px -4px rgba(59, 130, 246, 0.2);
@@ -231,9 +231,9 @@ body {
 }
 
 .otp.completed {
-    border-color: #3b82f6;
+    border-color: var(--primary-color);
     background: rgba(59, 130, 246, 0.15);
-    color: #3b82f6;
+    color: var(--primary-color);
     animation: completed-pulse 0.6s ease-in-out;
     box-shadow: 
         0 0 0 3px rgba(59, 130, 246, 0.3),
@@ -292,7 +292,7 @@ body {
 .btn {
     display: inline-block;
     padding: 1rem 2rem;
-    background: linear-gradient(135deg, #3b82f6, #2563eb);
+    background: linear-gradient(135deg, var(--primary-color), #2563eb);
     color: #ffffff;
     border: none;
     border-radius: 16px;
@@ -361,7 +361,7 @@ body {
 
 .btn-outline {
     background: rgba(59, 130, 246, 0.1);
-    color: #3b82f6;
+    color: var(--primary-color);
     border: 2px solid rgba(59, 130, 246, 0.3);
     box-shadow: 
         0 4px 8px -2px rgba(59, 130, 246, 0.1),
@@ -369,7 +369,7 @@ body {
 }
 
 .btn-outline:hover {
-    background: linear-gradient(135deg, #3b82f6, #2563eb);
+    background: linear-gradient(135deg, var(--primary-color), #2563eb);
     color: #ffffff;
     border-color: transparent;
     transform: translateY(-2px);
@@ -405,13 +405,13 @@ body {
     left: 0;
     width: 100%;
     height: 6px;
-    background: linear-gradient(90deg, #3b82f6, #06b6d4);
+    background: linear-gradient(90deg, var(--primary-color), #06b6d4);
     transform: scaleX(0);
     transition: all 0.3s ease;
 }
 
 .plan-card:hover {
-    border-color: #3b82f6;
+    border-color: var(--primary-color);
     transform: translateY(-8px);
     box-shadow: 0 25px 50px rgba(0, 0, 0, 0.2);
 }
@@ -421,7 +421,7 @@ body {
 }
 
 .plan-card.selected {
-    border-color: #3b82f6;
+    border-color: var(--primary-color);
     background: rgba(59, 130, 246, 0.05);
     transform: translateY(-8px);
     box-shadow: 0 25px 50px rgba(0, 0, 0, 0.2);
@@ -439,7 +439,7 @@ body {
 }
 
 .plan-badge {
-    background: linear-gradient(135deg, #3b82f6, #06b6d4);
+    background: linear-gradient(135deg, var(--primary-color), #06b6d4);
     color: #ffffff;
     padding: 0.5rem 1rem;
     border-radius: 50px;
@@ -493,7 +493,7 @@ body {
     width: 60px;
     height: 60px;
     border: 4px solid #475569;
-    border-top: 4px solid #3b82f6;
+    border-top: 4px solid var(--primary-color);
     border-radius: 50%;
     animation: spin 1s linear infinite;
     margin: 0 auto 2rem;
@@ -641,7 +641,7 @@ body {
 .verification-icon {
     width: 100px;
     height: 100px;
-    background: linear-gradient(135deg, #3b82f6, #06b6d4);
+    background: linear-gradient(135deg, var(--primary-color), #06b6d4);
     border-radius: 28px;
     display: flex;
     align-items: center;
@@ -704,7 +704,7 @@ body {
     width: 8px;
     height: 8px;
     border-radius: 50%;
-    background: #3b82f6;
+    background: var(--primary-color);
     animation: dot-bounce 1.4s ease-in-out infinite both;
 }
 
@@ -765,8 +765,8 @@ body {
 
 .message.info {
     background: rgba(59, 130, 246, 0.1);
-    color: #3b82f6;
-    border-color: #3b82f6;
+    color: var(--primary-color);
+    border-color: var(--primary-color);
 }
 
 /* QR Code Styles */
@@ -777,7 +777,7 @@ body {
     border-radius: 12px;
     padding: 2rem;
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-    border: 2px solid #3b82f6;
+    border: 2px solid var(--primary-color);
 }
 
 .qr-code {
@@ -827,7 +827,7 @@ body {
 .step-number {
     width: 24px;
     height: 24px;
-    background: linear-gradient(135deg, #3b82f6, #06b6d4);
+    background: linear-gradient(135deg, var(--primary-color), #06b6d4);
     border-radius: 50%;
     display: flex;
     align-items: center;
@@ -888,7 +888,7 @@ body {
     color: #f1f5f9;
     margin-bottom: 1.5rem;
     text-align: center;
-    border-bottom: 2px solid #3b82f6;
+    border-bottom: 2px solid var(--primary-color);
     padding-bottom: 0.75rem;
 }
 
@@ -905,7 +905,7 @@ body {
 }
 
 .pix-info-row:hover {
-    border-color: #3b82f6;
+    border-color: var(--primary-color);
     transform: translateY(-2px);
 }
 
@@ -939,7 +939,7 @@ body {
 }
 
 .pix-code:hover {
-    border-color: #3b82f6;
+    border-color: var(--primary-color);
 }
 
 .copy-btn {
@@ -947,7 +947,7 @@ body {
     top: 50%;
     right: 0.75rem;
     transform: translateY(-50%);
-    background: #3b82f6;
+    background: var(--primary-color);
     color: #ffffff;
     border: none;
     border-radius: 12px;
@@ -1043,7 +1043,7 @@ body {
 }
 
 .credential-item:hover {
-    border-color: #3b82f6;
+    border-color: var(--primary-color);
     transform: translateY(-2px);
 }
 
@@ -1055,7 +1055,7 @@ body {
 .credential-value {
     font-family: 'Courier New', monospace;
     font-weight: 700;
-    color: #3b82f6;
+    color: var(--primary-color);
     background: rgba(59, 130, 246, 0.1);
     padding: 0.5rem 1rem;
     border-radius: 12px;
@@ -1185,7 +1185,7 @@ body {
 /* Focus visible for accessibility */
 .btn:focus-visible,
 .form-control:focus-visible {
-    outline: 2px solid #3b82f6;
+    outline: 2px solid var(--primary-color);
     outline-offset: 2px;
 }
 

@@ -97,8 +97,8 @@ class TemplatesService {
             key: 'PROVIDER_NAME',
             label: 'Nome do Provedor',
             type: 'text',
-            required: true,
-            placeholder: 'Ex: MikroPix Internet'
+            required: false,
+            placeholder: 'WIFI'
           },
           {
             key: 'LOGO_URL',
@@ -119,7 +119,7 @@ class TemplatesService {
             label: 'Mensagem de Boas-vindas',
             type: 'text',
             required: false,
-            placeholder: 'Bem-vindo ao nosso hotspot!'
+            placeholder: 'Digite sua senha'
           },
           {
             key: 'DEBUG_MODE',
