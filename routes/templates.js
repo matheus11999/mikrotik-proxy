@@ -217,7 +217,9 @@ router.post('/templates/apply', authenticateUserOnly, templatesRateLimit, async 
     }
     
     // Validar variáveis obrigatórias
+    logger.info(`[TEMPLATES] About to validate variables for template: ${templateId}`);
     templatesService.validateVariables(templateId, variables || {});
+    logger.info(`[TEMPLATES] Variables validated successfully for template: ${templateId}`);
     
     // Aplicar template
     const result = await templatesService.applyTemplate(mikrotikId, templateId, serverProfileId, variables || {}, req.user.id);
